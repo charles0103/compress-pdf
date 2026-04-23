@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-04-23 - 修正 DPI 與圖片品質參數實際不生效
+
+### 🐛 問題修復
+
+- **[影響範圍]**: UI 上的圖片解析度 DPI 與圖片品質滑桿在多數情境下並未實際影響輸出檔案大小
+- **根因**:
+  1. DPI 估算以硬寫 Letter（8.5×11 吋）為基礎，未讀取頁面實際尺寸與圖片 CTM
+  2. 當圖片尺寸未超過「整頁像素估算」時，程式碼直接 return，品質參數完全未套用
+- **解決**:
+  - 使用 `pikepdf.models.ctm.get_objects_with_ctm()` 取得每張圖片的真實顯示尺寸
+  - 以 `effective_dpi = pixel / display_inch` 精確計算，替代 Letter 假設
+  - 拆開「降採樣」與「重編碼」流程，模式 3 新增 `force_recompress=True` 讓品質滑桿對所有圖片生效
+  - 新增最小尺寸門檻（64px）避免 icon 重編後變大
+  - 壓縮等級 slider 改為 disabled（pikepdf 9+ 已自動處理）
+- **成果**: ✅ 模式 2 的 DPI 切換、模式 3 的品質滑桿在所有 PDF 上都能實際影響輸出檔案大小
+- **詳細記錄**: [changelogs/2026-04/04-23-dpi-quality-fix.md](changelogs/2026-04/04-23-dpi-quality-fix.md)
+
 ## 2026-04-23 - 新增圖片解析度分析功能
 
 ### ✨ 新增功能

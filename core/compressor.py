@@ -62,10 +62,16 @@ def compress_file(
 def _compress_image_optimized(
     input_path: str, output_path: str, opts: CompressOptions
 ) -> None:
+    """模式 2：只降採樣超過目標 DPI 的圖片，品質保持高（95）以無感壓縮。"""
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
         tmp_path = tmp.name
     try:
-        optimize_images(input_path, tmp_path, dpi=opts.dpi, quality=95)
+        optimize_images(
+            input_path, tmp_path,
+            dpi=opts.dpi,
+            quality=95,
+            force_recompress=False,
+        )
         compress_lossless(tmp_path, output_path, opts.level)
     finally:
         if os.path.exists(tmp_path):
@@ -75,6 +81,7 @@ def _compress_image_optimized(
 def _compress_aggressive(
     input_path: str, output_path: str, opts: CompressOptions
 ) -> None:
+    """模式 3：所有圖片一律以使用者指定的品質重編碼，超過 DPI 的再加降採樣。"""
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
         tmp_path = tmp.name
     try:
@@ -82,6 +89,7 @@ def _compress_aggressive(
             input_path, tmp_path,
             dpi=opts.dpi,
             quality=opts.quality,
+            force_recompress=True,
         )
         compress_lossless(tmp_path, output_path, opts.level)
     finally:

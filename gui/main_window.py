@@ -121,23 +121,25 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
                 command=self._on_mode_change,
             ).pack(side="left", padx=8)
 
-        # 壓縮等級
-        ctk.CTkLabel(opt_frame, text="壓縮等級", font=ctk.CTkFont(size=12)).grid(
-            row=2, column=0, sticky="w", padx=12, pady=(6, 0)
-        )
+        # 壓縮等級（pikepdf 9+ 已自動最佳化，此 slider 僅保留 UI 一致性）
+        ctk.CTkLabel(
+            opt_frame, text="壓縮等級（自動）", font=ctk.CTkFont(size=12)
+        ).grid(row=2, column=0, sticky="w", padx=12, pady=(6, 0))
         self._level_label = ctk.CTkLabel(opt_frame, text="9", font=ctk.CTkFont(size=12))
         self._level_label.grid(row=2, column=1, sticky="e", padx=12)
 
         self._level_slider = ctk.CTkSlider(
-            opt_frame, from_=1, to=9, number_of_steps=8, command=self._on_level_change
+            opt_frame, from_=1, to=9, number_of_steps=8,
+            command=self._on_level_change,
+            state="disabled",
         )
         self._level_slider.set(9)
         self._level_slider.grid(row=3, column=0, columnspan=2, sticky="ew", padx=12, pady=(2, 8))
 
-        # 圖片解析度
-        ctk.CTkLabel(opt_frame, text="圖片解析度", font=ctk.CTkFont(size=12)).grid(
-            row=4, column=0, sticky="w", padx=12, pady=(4, 0)
-        )
+        # 圖片解析度（僅對超過目標 DPI 的圖片降採樣，不會升採樣）
+        ctk.CTkLabel(
+            opt_frame, text="圖片解析度（降採樣上限）", font=ctk.CTkFont(size=12)
+        ).grid(row=4, column=0, sticky="w", padx=12, pady=(4, 0))
         self._dpi_menu = ctk.CTkOptionMenu(
             opt_frame, values=DPI_OPTIONS, width=120,
             command=lambda _: None,
@@ -145,10 +147,10 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         self._dpi_menu.set("150 DPI")
         self._dpi_menu.grid(row=4, column=1, sticky="e", padx=12, pady=(4, 0))
 
-        # 圖片品質
-        ctk.CTkLabel(opt_frame, text="圖片品質", font=ctk.CTkFont(size=12)).grid(
-            row=5, column=0, sticky="w", padx=12, pady=(8, 0)
-        )
+        # 圖片品質（越低壓縮率越高）
+        ctk.CTkLabel(
+            opt_frame, text="圖片品質（越低檔案越小）", font=ctk.CTkFont(size=12)
+        ).grid(row=5, column=0, sticky="w", padx=12, pady=(8, 0))
         self._quality_label = ctk.CTkLabel(opt_frame, text="75", font=ctk.CTkFont(size=12))
         self._quality_label.grid(row=5, column=1, sticky="e", padx=12)
 
