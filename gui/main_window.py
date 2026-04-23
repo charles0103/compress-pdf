@@ -21,7 +21,7 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         self.TkdndVersion = TkinterDnD._require(self)
 
         self.title("PDF 壓縮工具")
-        self.geometry("620x780")
+        self.geometry("620x900")
         self.minsize(520, 680)
         self.resizable(True, True)
 
@@ -81,22 +81,22 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         self._drop_zone.grid(row=1, column=0, sticky="ew", padx=16, pady=(10, 4))
 
     def _build_file_list(self):
-        frame = ctk.CTkFrame(self, fg_color="transparent")
-        frame.grid(row=2, column=0, sticky="nsew", padx=16, pady=0)
-        frame.grid_columnconfigure(0, weight=1)
-        frame.grid_rowconfigure(1, weight=1)
+        self._file_list_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self._file_list_frame.grid(row=2, column=0, sticky="ew", padx=16, pady=0)
+        self._file_list_frame.grid_columnconfigure(0, weight=1)
+        self._file_list_frame.grid_rowconfigure(1, weight=1)
 
         ctk.CTkLabel(
-            frame,
+            self._file_list_frame,
             text="已選檔案",
             font=ctk.CTkFont(size=12),
             text_color=("gray40", "gray60"),
         ).grid(row=0, column=0, sticky="w", pady=(4, 2))
 
         self._list_scroll = ctk.CTkScrollableFrame(
-            frame, height=120, fg_color=("gray92", "gray16")
+            self._file_list_frame, height=180, fg_color=("gray92", "gray16")
         )
-        self._list_scroll.grid(row=1, column=0, sticky="nsew")
+        self._list_scroll.grid(row=1, column=0, sticky="nsew", pady=(0, 4))
         self._list_scroll.grid_columnconfigure(0, weight=1)
 
     def _build_options(self):
