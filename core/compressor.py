@@ -15,8 +15,9 @@ class CompressOptions:
     level: int = 9             # flate 壓縮等級 1-9
     dpi: int = 150             # 圖片目標 DPI（模式 2/3 有效）
     quality: int = 75          # JPEG 品質 50-95（模式 3 有效）
-    output_dir: str = ""       # 空字串代表與輸入同目錄
+    output_dir: str = ""         # 空字串代表與輸入同目錄
     preserve_dates: bool = True  # 保留原始檔案建立/修改日期
+    keep_filename: bool = False  # 保留原始檔名（輸出至 compressed/ 子資料夾）
 
 
 @dataclass
@@ -33,7 +34,11 @@ def compress_file(
     input_path: str,
     opts: CompressOptions,
 ) -> CompressResult:
-    output_path = default_output_path(input_path, opts.output_dir or None)
+    output_path = default_output_path(
+        input_path,
+        opts.output_dir or None,
+        keep_filename=opts.keep_filename,
+    )
     size_before = os.path.getsize(input_path)
 
     try:

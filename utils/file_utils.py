@@ -20,10 +20,24 @@ def size_delta_str(before: int, after: int) -> str:
     return f"{sign}{abs(pct):.1f}%"
 
 
-def default_output_path(input_path: str, output_dir: str | None = None) -> str:
-    base = os.path.splitext(os.path.basename(input_path))[0]
-    out_name = f"{base}_compressed.pdf"
-    folder = output_dir if output_dir else os.path.dirname(input_path)
+def default_output_path(
+    input_path: str,
+    output_dir: str | None = None,
+    keep_filename: bool = False,
+) -> str:
+    src_dir = os.path.dirname(input_path)
+    filename = os.path.basename(input_path)
+    base = os.path.splitext(filename)[0]
+
+    if keep_filename:
+        out_name = filename
+        # 未指定輸出目錄 → 自動建立 compressed/ 子資料夾
+        folder = output_dir if output_dir else os.path.join(src_dir, "compressed")
+    else:
+        out_name = f"{base}_compressed.pdf"
+        folder = output_dir if output_dir else src_dir
+
+    os.makedirs(folder, exist_ok=True)
     return os.path.join(folder, out_name)
 
 

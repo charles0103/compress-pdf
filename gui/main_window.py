@@ -163,7 +163,18 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             text="保留原始檔案建立/修改日期",
             variable=self._preserve_dates_var,
             font=ctk.CTkFont(size=12),
-        ).grid(row=7, column=0, columnspan=2, sticky="w", padx=12, pady=(0, 10))
+        ).grid(row=7, column=0, columnspan=2, sticky="w", padx=12, pady=(0, 4))
+
+        # 保留原始檔名
+        self._keep_filename_var = tk.BooleanVar(value=False)
+        self._keep_filename_cb = ctk.CTkCheckBox(
+            opt_frame,
+            text="保留原始檔名（輸出至 compressed/ 子資料夾）",
+            variable=self._keep_filename_var,
+            font=ctk.CTkFont(size=12),
+            command=self._on_keep_filename_change,
+        )
+        self._keep_filename_cb.grid(row=8, column=0, columnspan=2, sticky="w", padx=12, pady=(0, 10))
 
         self._on_mode_change()
 
@@ -259,6 +270,13 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
     def _on_quality_change(self, val):
         self._quality_label.configure(text=str(int(round(float(val)))))
 
+    def _on_keep_filename_change(self):
+        # 勾選保留原始檔名時，提示使用者輸出目錄的行為
+        if self._keep_filename_var.get():
+            output_dir = self._output_dir_var.get()
+            if output_dir == "（與原始檔案相同目錄）":
+                self._output_dir_var.set("（自動建立 compressed/ 子資料夾）")
+
     def _browse_files(self):
         paths = filedialog.askopenfilenames(
             title="選擇 PDF 檔案",
@@ -313,7 +331,7 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             return
 
         output_dir = self._output_dir_var.get()
-        if output_dir == "（與原始檔案相同目錄）":
+        if output_dir in ("（與原始檔案相同目錄）", "（自動建立 compressed/ 子資料夾）"):
             output_dir = ""
 
         opts = CompressOptions(
@@ -323,6 +341,7 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             quality=int(round(self._quality_slider.get())),
             output_dir=output_dir,
             preserve_dates=self._preserve_dates_var.get(),
+            keep_filename=self._keep_filename_var.get(),
         )
 
         self._is_running = True
@@ -349,7 +368,12 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             before = format_size(result.size_before)
             after = format_size(result.size_after)
             delta = size_delta_str(result.size_before, result.size_after)
-            self._append_result(f"✅  {name}\n    {before} → {after}  ({delta})\n")
+            out_dir = os.path.dirname(result.output_path)
+            self._append_result(
+                f"✅  {name}\n"
+                f"    {before} → {after}  ({delta})\n"
+                f"    輸出：{out_dir}\n"
+            )
         else:
             self._append_result(f"❌  {name}\n    錯誤：{result.error}\n")
 
