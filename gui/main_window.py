@@ -34,8 +34,11 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
 
         self._build_ui()
 
+        # 整個視窗與 DropZone 都接受拖放
         self.drop_target_register(DND_FILES)
         self.dnd_bind("<<Drop>>", self._on_drop)
+        self._drop_zone.drop_target_register(DND_FILES)
+        self._drop_zone.dnd_bind("<<Drop>>", self._on_drop)
 
     # ── UI 建構 ──────────────────────────────────────────────────
 
@@ -291,22 +294,32 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             self._output_dir_var.set(folder)
 
     def _on_drop(self, event):
-        raw = event.data
-        # tkinterdnd2 回傳以空格分隔的路徑，大括號包圍含空格的路徑
-        paths = self.tk.splitlist(raw)
+        raw = event.data or ""
+        try:
+            paths = self.tk.splitlist(raw)
+        except Exception:
+            # splitlist 失敗時手動清理大括號後以空白分割
+            paths = [p.strip("{}") for p in raw.split()]
         for p in paths:
-            if p.lower().endswith(".pdf"):
+            p = p.strip()
+            if p.lower().endswith(".pdf") and os.path.isfile(p):
                 self._add_file(p)
 
     def _add_file(self, path: str):
         if path in self._file_paths:
             return
+        if not os.path.isfile(path):
+            return
+        try:
+            item = FileListItem(
+                self._list_scroll,
+                file_path=path,
+                on_remove=self._remove_file,
+            )
+        except Exception as exc:
+            self._append_result(f"⚠️  無法載入 {os.path.basename(path)}：{exc}\n")
+            return
         self._file_paths.append(path)
-        item = FileListItem(
-            self._list_scroll,
-            file_path=path,
-            on_remove=self._remove_file,
-        )
         item.grid(
             row=len(self._file_items),
             column=0,

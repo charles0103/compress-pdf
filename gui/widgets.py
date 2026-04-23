@@ -33,23 +33,27 @@ class FileListItem(ctk.CTkFrame):
         self.btn_remove.pack(side="right", padx=4, pady=4)
 
 
-class DropZone(ctk.CTkFrame):
-    """拖放區域提示框。"""
+class DropZone(ctk.CTkButton):
+    """
+    拖放 / 點擊選檔區域。
+
+    使用 CTkButton 而非 CTkFrame：
+    CTkFrame 以內部 canvas 渲染，Python 層的 bind("<Button-1>") 無法接收
+    滑鼠事件；CTkButton 的 command 參數天然支援點擊，不需額外 binding。
+    """
 
     def __init__(self, master, on_click, **kwargs):
-        super().__init__(master, **kwargs)
-        self.configure(
+        super().__init__(
+            master,
+            text="📂  將 PDF 拖放至此，或點擊選擇檔案",
+            command=on_click,
             fg_color=("gray85", "gray17"),
+            hover_color=("gray78", "gray22"),
             border_color=("gray70", "gray40"),
             border_width=2,
             corner_radius=10,
-        )
-        self.label = ctk.CTkLabel(
-            self,
-            text="📂  將 PDF 拖放至此，或點擊選擇檔案",
             font=ctk.CTkFont(size=13),
             text_color=("gray40", "gray60"),
+            height=64,
+            **kwargs,
         )
-        self.label.pack(expand=True, pady=20)
-        self.bind("<Button-1>", lambda e: on_click())
-        self.label.bind("<Button-1>", lambda e: on_click())
