@@ -4,7 +4,7 @@ from tkinter import filedialog
 import customtkinter as ctk
 from tkinterdnd2 import DND_FILES, TkinterDnD
 
-from core.compressor import CompressOptions, CompressResult, compress_batch
+from core.compressor import CompressOptions, CompressResult, compress_batch, analyze_file
 from utils.file_utils import format_size, size_delta_str
 from gui.widgets import DropZone, FileListItem
 
@@ -216,22 +216,30 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         row = ctk.CTkFrame(self, fg_color="transparent")
         row.grid(row=5, column=0, sticky="ew", padx=16, pady=(12, 0))
         row.grid_columnconfigure(0, weight=1)
+        row.grid_columnconfigure(1, weight=0)
+
+        self._btn_analyze = ctk.CTkButton(
+            row, text="📊 分析圖片", height=36,
+            font=ctk.CTkFont(size=12),
+            command=self._analyze_files,
+        )
+        self._btn_analyze.grid(row=0, column=0, sticky="ew", padx=(0, 6))
 
         self._btn_start = ctk.CTkButton(
-            row, text="開始壓縮", height=40,
-            font=ctk.CTkFont(size=14, weight="bold"),
+            row, text="開始壓縮", height=36,
+            font=ctk.CTkFont(size=12, weight="bold"),
             command=self._start_compress,
         )
-        self._btn_start.grid(row=0, column=0, sticky="ew")
+        self._btn_start.grid(row=0, column=1, sticky="ew")
 
         self._progress_bar = ctk.CTkProgressBar(row)
         self._progress_bar.set(0)
-        self._progress_bar.grid(row=1, column=0, sticky="ew", pady=(8, 0))
+        self._progress_bar.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(8, 0))
 
         self._progress_label = ctk.CTkLabel(
             row, text="", font=ctk.CTkFont(size=11), text_color=("gray50", "gray50")
         )
-        self._progress_label.grid(row=2, column=0, sticky="w", pady=(2, 0))
+        self._progress_label.grid(row=2, column=0, columnspan=2, sticky="w", pady=(2, 0))
 
     def _build_results(self):
         frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -335,6 +343,41 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             del self._file_items[path]
         if path in self._file_paths:
             self._file_paths.remove(path)
+
+    def _analyze_files(self):
+        """分析選取的 PDF 檔案圖片解析度"""
+        if not self._file_paths:
+            self._append_result("⚠️  請先選擇至少一個 PDF 檔案。\n")
+            return
+
+        self._clear_results()
+        self._append_result("📊 圖片解析度分析\n")
+        self._append_result("─" * 30 + "\n")
+
+        for path in self._file_paths:
+            result = analyze_file(path)
+            if result is None:
+                self._append_result(f"❌ 無法分析：{os.path.basename(path)}\n")
+                continue
+
+            name = os.path.basename(path)
+            self._append_result(f"\n📄 {name}\n")
+            self._append_result(f"   頁數：{result.page_count}，圖片數：{result.total_images}\n")
+
+            if result.dpi_distribution:
+                self._append_result("   DPI 分佈：\n")
+                for dpi in sorted(result.dpi_distribution.keys(), reverse=True):
+                    count = result.dpi_distribution[dpi]
+                    self._append_result(f"     {dpi} DPI：{count} 張\n")
+
+            # 計算平均 DPI
+            total_px = sum(img.width * img.height for img in result.images)
+            if result.images:
+                avg_dpi = sum(img.dpi for img in result.images) / len(result.images)
+                self._append_result(f"   平均估算 DPI：{avg_dpi:.0f}\n")
+
+        self._append_result("\n" + "─" * 30 + "\n")
+        self._append_result("💡 建議：設定低於平均 DPI 的目標解析度可獲得較佳壓縮效果\n")
 
     def _start_compress(self):
         if self._is_running:

@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import Callable
 
 from core.lossless import compress_lossless
-from core.image_optimizer import optimize_images
+from core.image_optimizer import optimize_images, analyze_pdf_images, PdfAnalysisResult
 from utils.file_utils import default_output_path, preserve_timestamps
 
 
@@ -87,6 +87,16 @@ def _compress_aggressive(
     finally:
         if os.path.exists(tmp_path):
             os.unlink(tmp_path)
+
+
+def analyze_file(input_path: str) -> PdfAnalysisResult | None:
+    """分析 PDF 檔案的圖片解析度資訊"""
+    if not os.path.isfile(input_path):
+        return None
+    try:
+        return analyze_pdf_images(input_path)
+    except Exception:
+        return None
 
 
 def compress_batch(

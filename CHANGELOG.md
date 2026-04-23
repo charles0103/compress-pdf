@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-04-23 - 新增圖片解析度分析功能
+
+### ✨ 新增功能
+
+- **[影響範圍]**: 幫助使用者了解 PDF 內嵌圖片的解析度
+- **解決**: 新增「📊 分析圖片」按鈕，顯示 DPI 分佈與平均估算值
+- **成果**: ✅ 使用者可根據分析結果選擇適當的壓縮設定
+
+### 📋 實作內容
+
+- `core/image_optimizer.py` - 新增 `analyze_pdf_images()` 函數與 `ImageInfo` / `PdfAnalysisResult` 資料結構
+- `core/compressor.py` - 新增 `analyze_file()` 入口函數
+- `gui/main_window.py` - 新增分析按鈕與 `_analyze_files()` 方法
+
 ## 2026-04-23 - UI 修正
 
 ### 🐛 問題修復
