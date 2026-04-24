@@ -29,12 +29,14 @@ def default_output_path(
     filename = os.path.basename(input_path)
     base = os.path.splitext(filename)[0]
 
+    ext = os.path.splitext(filename)[1]
+
     if keep_filename:
         out_name = filename
         # 未指定輸出目錄 → 自動建立 compressed/ 子資料夾
         folder = output_dir if output_dir else os.path.join(src_dir, "compressed")
     else:
-        out_name = f"{base}_compressed.pdf"
+        out_name = f"{base}_compressed{ext}"
         folder = output_dir if output_dir else src_dir
 
     os.makedirs(folder, exist_ok=True)

@@ -314,8 +314,13 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
 
     def _browse_files(self):
         paths = filedialog.askopenfilenames(
-            title="選擇 PDF 檔案",
-            filetypes=[("PDF 檔案", "*.pdf"), ("所有檔案", "*.*")],
+            title="選擇檔案",
+            filetypes=[
+                ("支援的檔案", "*.pdf *.jpg *.jpeg"),
+                ("PDF 檔案", "*.pdf"),
+                ("JPEG 圖檔", "*.jpg *.jpeg"),
+                ("所有檔案", "*.*"),
+            ],
         )
         for p in paths:
             self._add_file(p)
@@ -334,7 +339,7 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             paths = [p.strip("{}") for p in raw.split()]
         for p in paths:
             p = p.strip()
-            if p.lower().endswith(".pdf") and os.path.isfile(p):
+            if p.lower().endswith((".pdf", ".jpg", ".jpeg")) and os.path.isfile(p):
                 self._add_file(p)
 
     def _add_file(self, path: str):
@@ -375,9 +380,9 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         self._file_paths.clear()
 
     def _analyze_files(self):
-        """分析選取的 PDF 檔案圖片解析度"""
+        """分析選取檔案的圖片解析度（PDF 顯示詳細資訊，JPG 顯示基本資訊）"""
         if not self._file_paths:
-            self._append_result("⚠️  請先選擇至少一個 PDF 檔案。\n")
+            self._append_result("⚠️  請先選擇至少一個檔案。\n")
             return
 
         self._clear_results()
@@ -385,12 +390,18 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         self._append_result("─" * 30 + "\n")
 
         for path in self._file_paths:
-            result = analyze_file(path)
-            if result is None:
-                self._append_result(f"❌ 無法分析：{os.path.basename(path)}\n")
+            name = os.path.basename(path)
+            ext = os.path.splitext(path)[1].lower()
+
+            if ext in (".jpg", ".jpeg"):
+                self._analyze_jpg(path, name)
                 continue
 
-            name = os.path.basename(path)
+            result = analyze_file(path)
+            if result is None:
+                self._append_result(f"❌ 無法分析：{name}\n")
+                continue
+
             self._append_result(f"\n📄 {name}\n")
             self._append_result(f"   頁數：{result.page_count}，圖片數：{result.total_images}\n")
 
@@ -400,8 +411,6 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
                     count = result.dpi_distribution[dpi]
                     self._append_result(f"     {dpi} DPI：{count} 張\n")
 
-            # 計算平均 DPI
-            total_px = sum(img.width * img.height for img in result.images)
             if result.images:
                 avg_dpi = sum(img.dpi for img in result.images) / len(result.images)
                 self._append_result(f"   平均估算 DPI：{avg_dpi:.0f}\n")
@@ -409,11 +418,29 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         self._append_result("\n" + "─" * 30 + "\n")
         self._append_result("💡 建議：設定低於平均 DPI 的目標解析度可獲得較佳壓縮效果\n")
 
+    def _analyze_jpg(self, path: str, name: str) -> None:
+        try:
+            from PIL import Image
+            img = Image.open(path)
+            w, h = img.size
+            dpi_info = img.info.get("dpi") or img.info.get("DPI")
+            if isinstance(dpi_info, (tuple, list)):
+                dpi_str = f"{dpi_info[0]:.0f} DPI"
+            elif dpi_info:
+                dpi_str = f"{dpi_info:.0f} DPI"
+            else:
+                dpi_str = "未知"
+            size_mb = os.path.getsize(path) / 1024 ** 2
+            self._append_result(f"\n🖼️  {name}\n")
+            self._append_result(f"   尺寸：{w} × {h} px，DPI：{dpi_str}，大小：{size_mb:.1f} MB\n")
+        except Exception as exc:
+            self._append_result(f"❌ 無法分析：{name}（{exc}）\n")
+
     def _start_compress(self):
         if self._is_running:
             return
         if not self._file_paths:
-            self._append_result("⚠️  請先選擇至少一個 PDF 檔案。\n")
+            self._append_result("⚠️  請先選擇至少一個檔案。\n")
             return
 
         output_dir = self._output_dir_var.get()

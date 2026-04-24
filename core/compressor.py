@@ -6,7 +6,10 @@ from typing import Callable
 
 from core.lossless import compress_lossless
 from core.image_optimizer import optimize_images, analyze_pdf_images, PdfAnalysisResult
+from core.jpg_compressor import compress_jpg
 from utils.file_utils import default_output_path, preserve_timestamps
+
+_JPG_EXTS = {".jpg", ".jpeg"}
 
 
 @dataclass
@@ -41,8 +44,12 @@ def compress_file(
     )
     size_before = os.path.getsize(input_path)
 
+    ext = os.path.splitext(input_path)[1].lower()
+
     try:
-        if opts.mode == 1:
+        if ext in _JPG_EXTS:
+            compress_jpg(input_path, output_path, opts.mode, opts.dpi, opts.quality)
+        elif opts.mode == 1:
             compress_lossless(input_path, output_path, opts.level)
         elif opts.mode == 2:
             _compress_image_optimized(input_path, output_path, opts)

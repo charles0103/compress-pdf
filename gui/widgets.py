@@ -46,7 +46,7 @@ class DropZone(ctk.CTkButton):
     def __init__(self, master, on_click, **kwargs):
         super().__init__(
             master,
-            text="📂  將 PDF 拖放至此，或點擊選擇檔案",
+            text="📂  將 PDF / JPG 拖放至此，或點擊選擇檔案",
             command=on_click,
             fg_color=("gray85", "gray17"),
             hover_color=("gray78", "gray22"),
