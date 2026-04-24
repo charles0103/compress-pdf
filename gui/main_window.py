@@ -89,12 +89,31 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         self._file_list_frame.grid_columnconfigure(0, weight=1)
         self._file_list_frame.grid_rowconfigure(1, weight=1)
 
+        header_row = ctk.CTkFrame(self._file_list_frame, fg_color="transparent")
+        header_row.grid(row=0, column=0, sticky="ew", pady=(4, 2))
+        header_row.grid_columnconfigure(0, weight=1)
+
         ctk.CTkLabel(
-            self._file_list_frame,
+            header_row,
             text="已選檔案",
             font=ctk.CTkFont(size=12),
             text_color=("gray40", "gray60"),
-        ).grid(row=0, column=0, sticky="w", pady=(4, 2))
+        ).grid(row=0, column=0, sticky="w")
+
+        self._btn_clear_all = ctk.CTkButton(
+            header_row,
+            text="全部清除",
+            width=70,
+            height=22,
+            font=ctk.CTkFont(size=11),
+            fg_color="transparent",
+            hover_color=("gray80", "gray30"),
+            text_color=("gray30", "gray70"),
+            border_width=1,
+            border_color=("gray70", "gray50"),
+            command=self._clear_files,
+        )
+        self._btn_clear_all.grid(row=0, column=1, sticky="e")
 
         self._list_scroll = ctk.CTkScrollableFrame(
             self._file_list_frame, height=180, fg_color=("gray92", "gray16")
@@ -348,6 +367,12 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             del self._file_items[path]
         if path in self._file_paths:
             self._file_paths.remove(path)
+
+    def _clear_files(self):
+        for item in self._file_items.values():
+            item.destroy()
+        self._file_items.clear()
+        self._file_paths.clear()
 
     def _analyze_files(self):
         """分析選取的 PDF 檔案圖片解析度"""
