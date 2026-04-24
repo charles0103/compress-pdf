@@ -72,6 +72,9 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             height=28,
             fg_color="transparent",
             hover_color=("gray80", "gray30"),
+            text_color=("gray10", "gray90"),
+            border_width=1,
+            border_color=("gray70", "gray50"),
             command=self._toggle_theme,
         )
         self._theme_btn.grid(row=0, column=1, sticky="e")

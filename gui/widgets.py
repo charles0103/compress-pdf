@@ -28,6 +28,7 @@ class FileListItem(ctk.CTkFrame):
             height=24,
             fg_color="transparent",
             hover_color=("gray80", "gray30"),
+            text_color=("gray20", "gray80"),
             command=lambda: on_remove(file_path),
         )
         self.btn_remove.pack(side="right", padx=4, pady=4)
