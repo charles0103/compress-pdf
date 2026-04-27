@@ -1,5 +1,6 @@
 import os
 import tkinter as tk
+from datetime import datetime
 from tkinter import filedialog
 import customtkinter as ctk
 from tkinterdnd2 import DND_FILES, TkinterDnD
@@ -38,6 +39,9 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         self._file_paths: list[str] = []
         self._file_items: dict[str, FileListItem] = {}
         self._is_running = False
+        self._last_results: list = []
+        self._last_opts = None
+        self._compress_start_time: str = ""
 
         self._build_ui()
         self._load_settings()
@@ -374,11 +378,30 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         frame.grid_rowconfigure(1, weight=1)
         self.grid_rowconfigure(6, weight=0)
 
+        header_row = ctk.CTkFrame(frame, fg_color="transparent")
+        header_row.grid(row=0, column=0, sticky="ew", pady=(0, 4))
+        header_row.grid_columnconfigure(0, weight=1)
+
         ctk.CTkLabel(
-            frame, text="壓縮結果",
+            header_row, text="壓縮結果",
             font=ctk.CTkFont(family="Segoe UI", size=12),
             text_color=("gray40", "#555555"),
-        ).grid(row=0, column=0, sticky="w", pady=(0, 4))
+        ).grid(row=0, column=0, sticky="w")
+
+        self._btn_export = ctk.CTkButton(
+            header_row,
+            text="📋 匯出日誌",
+            width=90, height=22,
+            font=ctk.CTkFont(family="Segoe UI", size=11),
+            fg_color="transparent",
+            hover_color=("gray80", "#1A2A30"),
+            text_color=("gray30", "#888888"),
+            border_width=1,
+            border_color=("gray70", "#2E2E2E"),
+            state="disabled",
+            command=self._export_log,
+        )
+        self._btn_export.grid(row=0, column=1, sticky="e")
 
         self._result_box = ctk.CTkTextbox(
             frame, height=100,
@@ -603,6 +626,13 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             keep_filename=self._keep_filename_var.get(),
         )
 
+        self._last_opts = opts
+        self._last_results = []
+        self._compress_start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self._btn_export.configure(state="disabled",
+                                   text_color=("gray30", "#888888"),
+                                   border_color=("gray70", "#2E2E2E"))
+
         self._is_running = True
         self._btn_start.configure(state="disabled", text="壓縮中…")
         self._progress_bar.set(0)
@@ -641,9 +671,74 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
 
     def _finish_batch(self, results: list[CompressResult]):
         self._is_running = False
+        self._last_results = results
         self._btn_start.configure(state="normal", text="開始壓縮")
         ok = sum(1 for r in results if r.success)
         self._progress_label.configure(text=f"完成：{ok}/{len(results)} 個成功")
+        self._btn_export.configure(
+            state="normal",
+            text_color=("gray10", "#00D1FF"),
+            border_color=("gray55", "#00D1FF"),
+        )
+
+    def _generate_log_text(self) -> str:
+        mode_names = {1: "無失真（模式 1）", 2: "圖片優化（模式 2）", 3: "高壓縮（模式 3）"}
+        opts = self._last_opts
+        lines = [
+            "PDF 壓縮工具 - 壓縮日誌",
+            "=" * 40,
+            f"時間：{self._compress_start_time}",
+        ]
+        if opts:
+            lines.append(f"壓縮模式：{mode_names.get(opts.mode, str(opts.mode))}")
+            if opts.mode >= 2:
+                lines.append(f"圖片解析度：{opts.dpi} DPI")
+            if opts.mode == 3:
+                lines.append(f"圖片品質：{opts.quality}")
+        lines += ["", "[壓縮結果]"]
+
+        total_saved = 0
+        ratios = []
+        for r in self._last_results:
+            name = os.path.basename(r.input_path)
+            if r.success:
+                before = format_size(r.size_before)
+                after = format_size(r.size_after)
+                delta = size_delta_str(r.size_before, r.size_after)
+                out_dir = os.path.dirname(r.output_path)
+                lines.append(f"✅  {name}")
+                lines.append(f"    {before} → {after}  ({delta})")
+                lines.append(f"    輸出：{out_dir}")
+                saved = r.size_before - r.size_after
+                total_saved += saved
+                if r.size_before > 0:
+                    ratios.append(saved / r.size_before * 100)
+            else:
+                lines.append(f"❌  {name}")
+                lines.append(f"    錯誤：{r.error}")
+
+        ok = sum(1 for r in self._last_results if r.success)
+        total = len(self._last_results)
+        lines += ["", "[統計摘要]", f"成功：{ok} / {total}"]
+        if total_saved > 0:
+            avg_ratio = sum(ratios) / len(ratios) if ratios else 0
+            lines.append(f"總計節省：{format_size(total_saved)}（平均 -{avg_ratio:.0f}%）")
+
+        return "\n".join(lines) + "\n"
+
+    def _export_log(self):
+        if not self._last_results:
+            return
+        default_name = f"compress_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        path = filedialog.asksaveasfilename(
+            title="儲存壓縮日誌",
+            defaultextension=".txt",
+            filetypes=[("文字檔案", "*.txt"), ("所有檔案", "*.*")],
+            initialfile=default_name,
+        )
+        if path:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(self._generate_log_text())
 
     def _clear_results(self):
         self._result_box.configure(state="normal")
