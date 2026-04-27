@@ -114,12 +114,13 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         header_row.grid(row=0, column=0, sticky="ew", pady=(4, 2))
         header_row.grid_columnconfigure(0, weight=1)
 
-        ctk.CTkLabel(
+        self._file_count_label = ctk.CTkLabel(
             header_row,
             text="已選檔案",
             font=ctk.CTkFont(family="Segoe UI", size=12),
             text_color=("gray40", "#555555"),
-        ).grid(row=0, column=0, sticky="w")
+        )
+        self._file_count_label.grid(row=0, column=0, sticky="w")
 
         self._btn_clear_all = ctk.CTkButton(
             header_row,
@@ -546,6 +547,14 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         )
         self._file_items[path] = item
         self._list_scroll.grid_columnconfigure(0, weight=1)
+        self._update_file_count()
+
+    def _update_file_count(self):
+        n = len(self._file_paths)
+        if n == 0:
+            self._file_count_label.configure(text="已選檔案")
+        else:
+            self._file_count_label.configure(text=f"已選檔案  共 {n} 個")
 
     # ── 非同步批次載入（避免網路磁碟 stat 阻塞 GUI）───────────────────
 
@@ -635,12 +644,14 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             del self._file_items[path]
         if path in self._file_paths:
             self._file_paths.remove(path)
+        self._update_file_count()
 
     def _clear_files(self):
         for item in self._file_items.values():
             item.destroy()
         self._file_items.clear()
         self._file_paths.clear()
+        self._update_file_count()
 
     def _analyze_files(self):
         """分析選取檔案的圖片解析度（PDF 顯示詳細資訊，JPG 顯示基本資訊）"""

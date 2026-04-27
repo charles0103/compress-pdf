@@ -1,5 +1,10 @@
 # Changelog
 
+### ✨ 2026-04-27 - 已選檔案標題顯示總數
+**影響範圍**: `gui/main_window.py`
+**解決**: 標題 label 改為 `_file_count_label`，新增 `_update_file_count()` 在 `_add_file` / `_remove_file` / `_clear_files` 三處呼叫；有檔案時顯示「已選檔案  共 N 個」，無檔案時還原為「已選檔案」
+**成果**: ✅ 使用者可一眼掌握當前選擇的檔案數量
+
 ### ⚡ 2026-04-27 - 大量檔案載入不再卡住 GUI
 **影響範圍**: `gui/main_window.py`、`gui/widgets.py`
 **解決**: 拖放 / 瀏覽選檔改為背景執行緒讀取 metadata（`os.path.getsize` / `isdir` 全部移到 worker），主執行緒只做字串去重與副檔名過濾；每 10 筆 widget 透過 `after(0, …)` 回主執行緒分批建立，搭配 `update_idletasks()` 強制重繪。`FileListItem` 接受 `size_bytes` 參數避免重複 stat。載入進度以青色字顯示在 DropZone（`show_loading` / `reset_idle`），同步寫入 `_progress_label`
