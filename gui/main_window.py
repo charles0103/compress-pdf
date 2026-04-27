@@ -9,7 +9,13 @@ from utils.file_utils import format_size, size_delta_str
 from gui.widgets import DropZone, FileListItem
 
 
-DPI_OPTIONS = ["300 DPI", "200 DPI", "150 DPI", "96 DPI", "72 DPI"]
+DPI_OPTIONS = [
+    "300 DPI（印刷）",
+    "200 DPI（高品質）",
+    "150 DPI（一般文件）",
+    "96 DPI（螢幕）",
+    "72 DPI（網頁）",
+]
 _DPI_MAP = {opt: int(opt.split()[0]) for opt in DPI_OPTIONS}
 
 
@@ -166,7 +172,7 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             opt_frame, values=DPI_OPTIONS, width=120,
             command=lambda _: None,
         )
-        self._dpi_menu.set("150 DPI")
+        self._dpi_menu.set("150 DPI（一般文件）")
         self._dpi_menu.grid(row=4, column=1, sticky="e", padx=12, pady=(4, 0))
 
         # 圖片品質（越低壓縮率越高）
