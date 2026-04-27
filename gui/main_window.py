@@ -6,6 +6,7 @@ from tkinterdnd2 import DND_FILES, TkinterDnD
 
 from core.compressor import CompressOptions, CompressResult, compress_batch, analyze_file
 from utils.file_utils import format_size, size_delta_str
+from utils.settings import load_settings, save_settings
 from gui.widgets import DropZone, FileListItem
 
 
@@ -39,12 +40,15 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         self._is_running = False
 
         self._build_ui()
+        self._load_settings()
 
         # 整個視窗與 DropZone 都接受拖放
         self.drop_target_register(DND_FILES)
         self.dnd_bind("<<Drop>>", self._on_drop)
         self._drop_zone.drop_target_register(DND_FILES)
         self._drop_zone.dnd_bind("<<Drop>>", self._on_drop)
+
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
 
     # ── UI 建構 ──────────────────────────────────────────────────
 
@@ -289,6 +293,38 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             state="disabled",
         )
         self._result_box.grid(row=1, column=0, sticky="ew")
+
+    # ── 設定持久化 ───────────────────────────────────────────────
+
+    def _load_settings(self):
+        s = load_settings()
+        self._mode_var.set(s["mode"])
+        self._dpi_menu.set(s["dpi"])
+        self._quality_slider.set(s["quality"])
+        self._quality_label.configure(text=str(s["quality"]))
+        self._preserve_dates_var.set(s["preserve_dates"])
+        self._keep_filename_var.set(s["keep_filename"])
+        if s["output_dir"]:
+            self._output_dir_var.set(s["output_dir"])
+        theme = s.get("theme", "System")
+        ctk.set_appearance_mode(theme)
+        self._theme_btn.configure(text="☀️" if theme == "Dark" else "🌙")
+        self._on_mode_change()
+
+    def _save_settings(self):
+        save_settings({
+            "mode": self._mode_var.get(),
+            "dpi": self._dpi_menu.get(),
+            "quality": int(round(self._quality_slider.get())),
+            "preserve_dates": self._preserve_dates_var.get(),
+            "keep_filename": self._keep_filename_var.get(),
+            "output_dir": self._output_dir_var.get(),
+            "theme": ctk.get_appearance_mode(),
+        })
+
+    def _on_close(self):
+        self._save_settings()
+        self.destroy()
 
     # ── 事件處理 ─────────────────────────────────────────────────
 
