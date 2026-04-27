@@ -1,5 +1,10 @@
 # Changelog
 
+### ♻️ 2026-04-27 - 重構降採樣邏輯，修正 PPTX 壓縮無效問題
+**影響範圍**: `core/_image_utils.py`（新增）、`core/jpg_compressor.py`、`core/pptx_compressor.py`
+**解決**: 新增共用模組 `_image_utils.py`，分離兩種降採樣策略：JPG 依 DPI metadata（`resample_by_dpi`）、PPTX 依像素長邊（`resample_by_max_px`）。PPTX 內嵌圖片通常不帶 DPI metadata，舊邏輯幾乎不觸發降採樣；改為以目標 DPI × 13.33 英寸換算最大像素數（16:9 寬螢幕基準），模式 2/3 現在有實際壓縮效果
+**成果**: ✅ PPTX 模式 2/3 降採樣正常觸發；移除重複的 `_maybe_resample` 實作
+
 ## ✨ 2026-04-27 - 新增 PPTX 壓縮支援
 
 新增 `core/pptx_compressor.py`，以 `zipfile` + `Pillow` 實作三種壓縮模式（ZIP 重壓、降採樣、強制重編碼），不需新增任何依賴。開檔對話框、拖放、分析功能一併更新以支援 `.pptx`；`.ppt` 舊格式顯示提示訊息。

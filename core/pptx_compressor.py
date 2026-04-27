@@ -1,6 +1,7 @@
 import io
 import zipfile
 from PIL import Image
+from core._image_utils import dpi_to_max_px, resample_by_max_px
 
 _JPEG_EXTS = (".jpg", ".jpeg")
 _PNG_EXT = ".png"
@@ -43,7 +44,7 @@ def _recompress_image(data: bytes, filename: str, mode: int, target_dpi: int, qu
         img.load()
         is_png = filename.lower().endswith(_PNG_EXT)
 
-        img = _maybe_resample(img, target_dpi)
+        img = resample_by_max_px(img, dpi_to_max_px(target_dpi))
 
         buf = io.BytesIO()
         if is_png:
@@ -63,20 +64,6 @@ def _recompress_image(data: bytes, filename: str, mode: int, target_dpi: int, qu
     except Exception:
         return data
 
-
-def _maybe_resample(img: Image.Image, target_dpi: int) -> Image.Image:
-    """若圖片 DPI 超過目標則降採樣"""
-    dpi_info = img.info.get("dpi")
-    if isinstance(dpi_info, (tuple, list)):
-        current_dpi = float(dpi_info[0]) or 72.0
-    else:
-        current_dpi = 72.0
-    if current_dpi <= target_dpi:
-        return img
-    scale = target_dpi / current_dpi
-    new_w = max(1, int(img.width * scale))
-    new_h = max(1, int(img.height * scale))
-    return img.resize((new_w, new_h), Image.LANCZOS)
 
 
 def analyze_pptx(input_path: str) -> dict:
