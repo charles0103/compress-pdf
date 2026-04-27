@@ -1,5 +1,10 @@
 # Changelog
 
+### 🎨 2026-04-27 - 壓縮模式選擇器改為分段按鈕
+**影響範圍**: `gui/main_window.py`
+**解決**: 將三個外觀相似的 `CTkRadioButton` 替換為 `CTkSegmentedButton`，選中項以青藍色填滿背景，未選中項維持深灰底，視覺對比明顯；保留 `_mode_var` 整數邏輯，設定存讀同步更新
+**成果**: ✅ 使用者可立即辨識目前選擇的壓縮模式
+
 ### ♻️ 2026-04-27 - 重構降採樣邏輯，修正 PPTX 壓縮無效問題
 **影響範圍**: `core/_image_utils.py`（新增）、`core/jpg_compressor.py`、`core/pptx_compressor.py`
 **解決**: 新增共用模組 `_image_utils.py`，分離兩種降採樣策略：JPG 依 DPI metadata（`resample_by_dpi`）、PPTX 依像素長邊（`resample_by_max_px`）。PPTX 內嵌圖片通常不帶 DPI metadata，舊邏輯幾乎不觸發降採樣；改為以目標 DPI × 13.33 英寸換算最大像素數（16:9 寬螢幕基準），模式 2/3 現在有實際壓縮效果

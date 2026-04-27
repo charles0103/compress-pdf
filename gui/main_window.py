@@ -161,21 +161,22 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             text_color=("gray30", "#888888"),
         ).grid(row=0, column=0, columnspan=2, sticky="w", padx=12, pady=(10, 4))
         self._mode_var = tk.IntVar(value=1)
-        modes = [("無失真", 1), ("圖片優化", 2), ("高壓縮", 3)]
-        mode_row = ctk.CTkFrame(opt_frame, fg_color="transparent")
-        mode_row.grid(row=1, column=0, columnspan=2, sticky="w", padx=8, pady=(0, 6))
-        for label, val in modes:
-            ctk.CTkRadioButton(
-                mode_row,
-                text=label,
-                variable=self._mode_var,
-                value=val,
-                font=ctk.CTkFont(family="Segoe UI", size=12),
-                border_color=("gray55", "#00D1FF"),
-                fg_color=("gray30", "#00D1FF"),
-                hover_color=("gray40", "#008FAD"),
-                command=self._on_mode_change,
-            ).pack(side="left", padx=8)
+        _mode_labels = ["無失真", "圖片優化", "高壓縮"]
+        self._mode_seg = ctk.CTkSegmentedButton(
+            opt_frame,
+            values=_mode_labels,
+            selected_color=("gray30", "#00A8CC"),
+            selected_hover_color=("gray20", "#008FAD"),
+            unselected_color=("gray80", "#1A1A1A"),
+            unselected_hover_color=("gray70", "#1A3040"),
+            text_color=("gray10", "#FFFFFF"),
+            text_color_disabled=("gray60", "#555555"),
+            font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
+            command=self._on_mode_seg_change,
+        )
+        self._mode_seg.set(_mode_labels[0])
+        self._mode_seg.grid(row=1, column=0, columnspan=2, sticky="ew",
+                            padx=12, pady=(0, 8))
 
         # 壓縮等級（pikepdf 9+ 已自動最佳化，此 slider 僅保留 UI 一致性）
         ctk.CTkLabel(
@@ -422,6 +423,8 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
     def _load_settings(self):
         s = load_settings()
         self._mode_var.set(s["mode"])
+        _mode_label_map = {1: "無失真", 2: "圖片優化", 3: "高壓縮"}
+        self._mode_seg.set(_mode_label_map.get(s["mode"], "無失真"))
         self._dpi_menu.set(s["dpi"])
         self._quality_slider.set(s["quality"])
         self._quality_label.configure(text=str(s["quality"]))
@@ -459,6 +462,11 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         ctk.set_appearance_mode(new_mode)
         self._theme_btn.configure(text="☀️" if new_mode == "Dark" else "🌙")
         self._divider._draw()
+    def _on_mode_seg_change(self, label: str):
+        mapping = {"無失真": 1, "圖片優化": 2, "高壓縮": 3}
+        self._mode_var.set(mapping.get(label, 1))
+        self._on_mode_change()
+
     def _on_mode_change(self):
         mode = self._mode_var.get()
         dpi_state = "normal" if mode >= 2 else "disabled"
