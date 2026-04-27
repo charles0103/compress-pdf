@@ -1,4 +1,5 @@
 import os
+import threading
 import tkinter as tk
 from datetime import datetime
 from tkinter import filedialog
@@ -499,8 +500,8 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
                 ("所有檔案", "*.*"),
             ],
         )
-        for p in paths:
-            self._add_file(p)
+        if paths:
+            self._load_files_async(list(paths), check_folders=False)
 
     def _browse_output(self):
         folder = filedialog.askdirectory(title="選擇輸出資料夾")
@@ -513,30 +514,25 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             paths = self.tk.splitlist(raw)
         except Exception:
             paths = [p.strip("{}") for p in raw.split()]
-        has_folder = False
-        for p in paths:
-            p = p.strip()
-            if os.path.isdir(p):
-                has_folder = True
-            elif p.lower().endswith((".pdf", ".jpg", ".jpeg", ".pptx")) and os.path.isfile(p):
-                self._add_file(p)
-        if has_folder:
-            self._append_result("⚠️  不支援拖入資料夾，請直接拖入檔案。\n")
+        cleaned = [p.strip() for p in paths if p.strip()]
+        if cleaned:
+            self._load_files_async(cleaned, check_folders=True)
 
     def _on_drop_with_stop(self, event):
         self._drop_zone.stop_scan()
         self._on_drop(event)
 
-    def _add_file(self, path: str):
+    def _add_file(self, path: str, size_bytes: int | None = None):
         if path in self._file_paths:
             return
-        if not os.path.isfile(path):
+        if size_bytes is None and not os.path.isfile(path):
             return
         try:
             item = FileListItem(
                 self._list_scroll,
                 file_path=path,
                 on_remove=self._remove_file,
+                size_bytes=size_bytes,
             )
         except Exception as exc:
             self._append_result(f"⚠️  無法載入 {os.path.basename(path)}：{exc}\n")
@@ -550,6 +546,88 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         )
         self._file_items[path] = item
         self._list_scroll.grid_columnconfigure(0, weight=1)
+
+    # ── 非同步批次載入（避免網路磁碟 stat 阻塞 GUI）───────────────────
+
+    _LOAD_BATCH_SIZE = 10
+    _VALID_EXTS = (".pdf", ".jpg", ".jpeg", ".pptx")
+
+    def _load_files_async(self, raw_paths: list[str], check_folders: bool):
+        """背景執行緒讀取 metadata，分批送回主執行緒建立 widget。
+
+        check_folders=True 時（拖放）才在 worker 內檢查是否為資料夾，
+        因為網路磁碟 isdir() 也會耗時。
+        """
+        seen = set(self._file_paths)
+        candidates: list[str] = []
+        unknown: list[str] = []
+        for p in raw_paths:
+            if p in seen:
+                continue
+            seen.add(p)
+            if p.lower().endswith(self._VALID_EXTS):
+                candidates.append(p)
+            elif check_folders:
+                unknown.append(p)
+
+        total = len(candidates)
+        if total == 0 and not unknown:
+            return
+
+        if total > 0:
+            self._set_loading_status(f"載入中  0 / {total} …")
+            self.update_idletasks()  # 立即重繪 label，避免被後續批次蓋過去
+
+        def worker():
+            has_folder = False
+            for p in unknown:
+                try:
+                    if os.path.isdir(p):
+                        has_folder = True
+                        break
+                except Exception:
+                    pass
+
+            batch: list[tuple[str, int]] = []
+            processed = 0
+            for p in candidates:
+                try:
+                    size = os.path.getsize(p)
+                except Exception:
+                    continue
+                batch.append((p, size))
+                processed += 1
+                if len(batch) >= self._LOAD_BATCH_SIZE:
+                    self.after(0, self._consume_loaded_batch, batch, processed, total)
+                    batch = []
+            if batch:
+                self.after(0, self._consume_loaded_batch, batch, processed, total)
+
+            self.after(0, self._finish_loading, has_folder)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _consume_loaded_batch(self, batch: list[tuple[str, int]], done: int, total: int):
+        # 先更新進度文字並強制重繪，這樣使用者才看得到「逐步遞增」效果。
+        # 否則整串 after(0, …) 回呼會連續執行，Tk 直到全部跑完才一次重繪。
+        if done < total:
+            self._set_loading_status(f"載入中  {done} / {total} …")
+        self.update_idletasks()
+        for path, size in batch:
+            self._add_file(path, size_bytes=size)
+
+    def _finish_loading(self, has_folder: bool):
+        self._set_loading_status("")
+        if has_folder:
+            self._append_result("⚠️  不支援拖入資料夾，請直接拖入檔案。\n")
+
+    def _set_loading_status(self, text: str):
+        # 顯示在 DropZone 上：青色字、清晰可見、就在使用者剛剛操作的位置
+        if text:
+            self._drop_zone.show_loading(f"⏳  {text}")
+        else:
+            self._drop_zone.reset_idle()
+        self._progress_label.configure(text=text)
 
     def _remove_file(self, path: str):
         if path in self._file_items:

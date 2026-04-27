@@ -1,5 +1,10 @@
 # Changelog
 
+### ⚡ 2026-04-27 - 大量檔案載入不再卡住 GUI
+**影響範圍**: `gui/main_window.py`、`gui/widgets.py`
+**解決**: 拖放 / 瀏覽選檔改為背景執行緒讀取 metadata（`os.path.getsize` / `isdir` 全部移到 worker），主執行緒只做字串去重與副檔名過濾；每 10 筆 widget 透過 `after(0, …)` 回主執行緒分批建立，搭配 `update_idletasks()` 強制重繪。`FileListItem` 接受 `size_bytes` 參數避免重複 stat。載入進度以青色字顯示在 DropZone（`show_loading` / `reset_idle`），同步寫入 `_progress_label`
+**成果**: ✅ 從網路磁碟拖入 400 個檔案不再出現「沒有回應」；DropZone 即時顯示「⏳ 載入中 N / Total …」遞增
+
 ### 🎨 2026-04-27 - 壓縮模式選擇器改為分段按鈕
 **影響範圍**: `gui/main_window.py`
 **解決**: 將三個外觀相似的 `CTkRadioButton` 替換為 `CTkSegmentedButton`，選中項以青藍色填滿背景，未選中項維持深灰底，視覺對比明顯；保留 `_mode_var` 整數邏輯，設定存讀同步更新

@@ -103,7 +103,7 @@ class AnimatedBorderFrame(ctk.CTkFrame):
 class FileListItem(ctk.CTkFrame):
     """檔案列表中的單一條目，顯示檔名、大小與移除按鈕。"""
 
-    def __init__(self, master, file_path: str, on_remove, **kwargs):
+    def __init__(self, master, file_path: str, on_remove, size_bytes: int | None = None, **kwargs):
         super().__init__(master, **kwargs)
         self.file_path = file_path
         self.configure(
@@ -114,7 +114,9 @@ class FileListItem(ctk.CTkFrame):
         )
 
         name    = os.path.basename(file_path)
-        size_mb = os.path.getsize(file_path) / 1024 ** 2
+        if size_bytes is None:
+            size_bytes = os.path.getsize(file_path)
+        size_mb = size_bytes / 1024 ** 2
 
         self.label = ctk.CTkLabel(
             self,
@@ -181,6 +183,26 @@ class DropZone(ctk.CTkButton):
         if self._scan_job:
             self.after_cancel(self._scan_job)
             self._scan_job = None
+        self.configure(
+            border_color=("gray65", _CYAN),
+            text=self._IDLE_TEXT,
+            text_color=("gray40", "#777777"),
+        )
+
+    def show_loading(self, text: str):
+        """顯示載入進度（使用青色字以確保深色模式下也清楚可見）。"""
+        self._scanning = False
+        if self._scan_job:
+            self.after_cancel(self._scan_job)
+            self._scan_job = None
+        self.configure(
+            border_color=("gray65", _CYAN),
+            text=text,
+            text_color=("gray10", _CYAN),
+        )
+
+    def reset_idle(self):
+        """還原為閒置狀態文字。"""
         self.configure(
             border_color=("gray65", _CYAN),
             text=self._IDLE_TEXT,
