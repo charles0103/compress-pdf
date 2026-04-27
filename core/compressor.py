@@ -40,12 +40,19 @@ def compress_file(
     input_path: str,
     opts: CompressOptions,
 ) -> CompressResult:
-    output_path = default_output_path(
-        input_path,
-        opts.output_dir or None,
-        keep_filename=opts.keep_filename,
-    )
-    size_before = os.path.getsize(input_path)
+    output_path = ""
+    size_before = 0
+    try:
+        size_before = os.path.getsize(input_path)
+        output_path = default_output_path(
+            input_path,
+            opts.output_dir or None,
+            keep_filename=opts.keep_filename,
+        )
+    except PermissionError as exc:
+        return CompressResult(input_path, "", size_before, 0, False, f"存取被拒：{exc}")
+    except Exception as exc:
+        return CompressResult(input_path, "", size_before, 0, False, str(exc))
 
     ext = os.path.splitext(input_path)[1].lower()
 
@@ -126,14 +133,25 @@ def compress_batch(
     opts: CompressOptions,
     on_progress: Callable[[int, int, CompressResult], None],
     on_done: Callable[[list[CompressResult]], None],
+    should_cancel: Callable[[], bool] | None = None,
 ) -> threading.Thread:
-    """在背景執行緒批次壓縮，每完成一個檔案呼叫 on_progress，全部完成後呼叫 on_done。"""
+    """在背景執行緒批次壓縮，每完成一個檔案呼叫 on_progress，全部完成後呼叫 on_done。
+
+    若提供 should_cancel，會在每個檔案開始前檢查；回傳 True 則停止後續檔案，
+    已完成的結果仍會傳給 on_done。
+    """
 
     def run():
         results = []
         total = len(file_paths)
         for i, path in enumerate(file_paths):
-            result = compress_file(path, opts)
+            if should_cancel and should_cancel():
+                break
+            try:
+                result = compress_file(path, opts)
+            except Exception as exc:
+                # compress_file 自身應該已捕捉所有例外，這裡是最後一道防線
+                result = CompressResult(path, "", 0, 0, False, f"未預期錯誤：{exc}")
             results.append(result)
             on_progress(i + 1, total, result)
         on_done(results)

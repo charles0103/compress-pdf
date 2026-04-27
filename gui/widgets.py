@@ -100,6 +100,67 @@ class AnimatedBorderFrame(ctk.CTkFrame):
         self._job = self.after(self._INTERVAL, self._tick)
 
 
+class CTkSplitter(ctk.CTkFrame):
+    """純 CTk 雙窗格分割器，支援水平 / 垂直方向。
+
+    使用方式：
+        s = CTkSplitter(parent, orient="horizontal", a_initial=430, a_min=380, b_min=360)
+        # 把內容放進 s.pane_a 與 s.pane_b
+    把手 hover 時轉青色，可拖動以調整 pane_a 的尺寸；pane_b 以 weight=1 吃掉剩餘。
+    """
+
+    _GRIP_THICKNESS = 6
+    _IDLE   = ("gray70", _BORDER_IDLE)
+    _ACTIVE = ("gray50", _CYAN)
+
+    def __init__(self, master, orient: str = "horizontal",
+                 a_initial: int = 400, a_min: int = 200, b_min: int = 200, **kwargs):
+        kwargs.setdefault("fg_color", "transparent")
+        super().__init__(master, **kwargs)
+        self._orient = orient
+        self._a_min  = a_min
+        self._b_min  = b_min
+
+        self.pane_a = ctk.CTkFrame(self, fg_color="transparent")
+        self.pane_b = ctk.CTkFrame(self, fg_color="transparent")
+        self.grip   = ctk.CTkFrame(self, fg_color=self._IDLE, corner_radius=0)
+
+        if orient == "horizontal":
+            self.grid_rowconfigure(0, weight=1)
+            self.grid_columnconfigure(0, weight=0, minsize=a_initial)
+            self.grid_columnconfigure(1, weight=0, minsize=self._GRIP_THICKNESS)
+            self.grid_columnconfigure(2, weight=1, minsize=b_min)
+            self.pane_a.grid(row=0, column=0, sticky="nsew")
+            self.grip.configure(width=self._GRIP_THICKNESS, cursor="sb_h_double_arrow")
+            self.grip.grid(row=0, column=1, sticky="ns")
+            self.pane_b.grid(row=0, column=2, sticky="nsew")
+        else:
+            self.grid_columnconfigure(0, weight=1)
+            self.grid_rowconfigure(0, weight=0, minsize=a_initial)
+            self.grid_rowconfigure(1, weight=0, minsize=self._GRIP_THICKNESS)
+            self.grid_rowconfigure(2, weight=1, minsize=b_min)
+            self.pane_a.grid(row=0, column=0, sticky="nsew")
+            self.grip.configure(height=self._GRIP_THICKNESS, cursor="sb_v_double_arrow")
+            self.grip.grid(row=1, column=0, sticky="ew")
+            self.pane_b.grid(row=2, column=0, sticky="nsew")
+
+        self.grip.bind("<Enter>",     lambda _: self.grip.configure(fg_color=self._ACTIVE))
+        self.grip.bind("<Leave>",     lambda _: self.grip.configure(fg_color=self._IDLE))
+        self.grip.bind("<B1-Motion>", self._on_drag)
+
+    def _on_drag(self, event):
+        if self._orient == "horizontal":
+            pos   = self.grip.winfo_rootx() + event.x - self.winfo_rootx()
+            total = self.winfo_width()
+            pos   = max(self._a_min, min(total - self._b_min - self._GRIP_THICKNESS, pos))
+            self.grid_columnconfigure(0, minsize=pos)
+        else:
+            pos   = self.grip.winfo_rooty() + event.y - self.winfo_rooty()
+            total = self.winfo_height()
+            pos   = max(self._a_min, min(total - self._b_min - self._GRIP_THICKNESS, pos))
+            self.grid_rowconfigure(0, minsize=pos)
+
+
 class FileListItem(ctk.CTkFrame):
     """檔案列表中的單一條目，顯示檔名、大小與移除按鈕。"""
 

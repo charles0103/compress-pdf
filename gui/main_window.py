@@ -10,7 +10,7 @@ from core.compressor import CompressOptions, CompressResult, compress_batch, ana
 from core.pptx_compressor import analyze_pptx
 from utils.file_utils import format_size, size_delta_str
 from utils.settings import load_settings, save_settings
-from gui.widgets import DropZone, FileListItem, AnimatedBorderFrame, GradientDivider
+from gui.widgets import DropZone, FileListItem, AnimatedBorderFrame, GradientDivider, CTkSplitter
 
 
 DPI_OPTIONS = [
@@ -31,8 +31,8 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         self.TkdndVersion = TkinterDnD._require(self)
 
         self.title("PDF 壓縮工具")
-        self.geometry("620x900")
-        self.minsize(520, 680)
+        self.geometry("1100x720")
+        self.minsize(960, 600)
         self.resizable(True, True)
 
         ctk.set_appearance_mode("System")
@@ -41,6 +41,7 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         self._file_paths: list[str] = []
         self._file_items: dict[str, FileListItem] = {}
         self._is_running = False
+        self._cancel_requested = False
         self._last_results: list = []
         self._last_opts = None
         self._compress_start_time: str = ""
@@ -62,15 +63,46 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
 
     def _build_ui(self):
         self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(2, weight=1)
+        self.grid_rowconfigure(1, weight=1)
 
         self._build_header()
-        self._build_drop_zone()
-        self._build_file_list()
-        self._build_options()
-        self._build_output_row()
-        self._build_action_row()
-        self._build_results()
+        self._build_main_layout()
+
+    def _build_main_layout(self):
+        # 左欄：DropZone、選項、輸出、動作、進度
+        # 右欄：上 已選檔案 / 下 壓縮結果（垂直可拖）
+        self._main_split = CTkSplitter(
+            self, orient="horizontal",
+            a_initial=440, a_min=380, b_min=360,
+        )
+        self._main_split.grid(row=1, column=0, sticky="nsew", padx=16, pady=(8, 14))
+
+        left  = self._main_split.pane_a
+        right = self._main_split.pane_b
+
+        left.grid_columnconfigure(0, weight=1)
+        self._build_drop_zone(left, row=0)
+        self._build_options(left, row=1)
+        self._build_output_row(left, row=2)
+        self._build_action_row(left, row=3)
+
+        right.grid_columnconfigure(0, weight=1)
+        right.grid_rowconfigure(0, weight=1)
+        self._right_split = CTkSplitter(
+            right, orient="vertical",
+            a_initial=320, a_min=160, b_min=140,
+        )
+        self._right_split.grid(row=0, column=0, sticky="nsew", padx=(8, 0))
+
+        top    = self._right_split.pane_a
+        bottom = self._right_split.pane_b
+        top.grid_columnconfigure(0, weight=1)
+        top.grid_rowconfigure(0, weight=1)
+        bottom.grid_columnconfigure(0, weight=1)
+        bottom.grid_rowconfigure(0, weight=1)
+
+        self._build_file_list(top)
+        self._build_results(bottom)
 
     def _build_header(self):
         header = ctk.CTkFrame(self, fg_color="transparent")
@@ -100,13 +132,13 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         self._divider = GradientDivider(header)
         self._divider.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(8, 2))
 
-    def _build_drop_zone(self):
-        self._drop_zone = DropZone(self, on_click=self._browse_files)
-        self._drop_zone.grid(row=1, column=0, sticky="ew", padx=16, pady=(10, 4))
+    def _build_drop_zone(self, parent, row: int):
+        self._drop_zone = DropZone(parent, on_click=self._browse_files)
+        self._drop_zone.grid(row=row, column=0, sticky="ew", padx=(0, 8), pady=(0, 8))
 
-    def _build_file_list(self):
-        self._file_list_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self._file_list_frame.grid(row=2, column=0, sticky="ew", padx=16, pady=0)
+    def _build_file_list(self, parent):
+        self._file_list_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        self._file_list_frame.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
         self._file_list_frame.grid_columnconfigure(0, weight=1)
         self._file_list_frame.grid_rowconfigure(1, weight=1)
 
@@ -137,23 +169,23 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         self._btn_clear_all.grid(row=0, column=1, sticky="e")
 
         self._list_scroll = ctk.CTkScrollableFrame(
-            self._file_list_frame, height=180,
+            self._file_list_frame,
             fg_color=("gray90", "#161616"),
             border_width=1,
             border_color=("gray75", "#2E2E2E"),
         )
-        self._list_scroll.grid(row=1, column=0, sticky="nsew", pady=(0, 4))
+        self._list_scroll.grid(row=1, column=0, sticky="nsew", pady=(0, 0))
         self._list_scroll.grid_columnconfigure(0, weight=1)
 
-    def _build_options(self):
+    def _build_options(self, parent, row: int):
         opt_frame = AnimatedBorderFrame(
-            self,
+            parent,
             fg_color=("gray94", "#232323"),
             border_width=1,
             border_color=("gray75", "#2E2E2E"),
             corner_radius=10,
         )
-        opt_frame.grid(row=3, column=0, sticky="ew", padx=16, pady=(10, 0))
+        opt_frame.grid(row=row, column=0, sticky="ew", padx=(0, 8), pady=(2, 0))
         opt_frame.grid_columnconfigure((0, 1), weight=1)
 
         # 壓縮模式
@@ -281,10 +313,11 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
 
         self._on_mode_change()
 
-    def _build_output_row(self):
-        row = ctk.CTkFrame(self, fg_color="transparent")
-        row.grid(row=4, column=0, sticky="ew", padx=16, pady=(8, 0))
-        row.grid_columnconfigure(0, weight=1)
+    def _build_output_row(self, parent, row: int):
+        row_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        row_frame.grid(row=row, column=0, sticky="ew", padx=(0, 8), pady=(8, 0))
+        row_frame.grid_columnconfigure(0, weight=1)
+        row = row_frame  # 保留原本變數名以最少化下方修改
 
         ctk.CTkLabel(
             row, text="輸出資料夾",
@@ -328,11 +361,12 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             command=lambda: self._output_dir_var.set("（與原始檔案相同目錄）"),
         ).grid(row=0, column=2, padx=(4, 0))
 
-    def _build_action_row(self):
-        row = ctk.CTkFrame(self, fg_color="transparent")
-        row.grid(row=5, column=0, sticky="ew", padx=16, pady=(12, 0))
-        row.grid_columnconfigure(0, weight=1)
-        row.grid_columnconfigure(1, weight=0)
+    def _build_action_row(self, parent, row: int):
+        row_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        row_frame.grid(row=row, column=0, sticky="ew", padx=(0, 8), pady=(12, 0))
+        row_frame.grid_columnconfigure(0, weight=1)
+        row_frame.grid_columnconfigure(1, weight=0)
+        row = row_frame
 
         self._btn_analyze = ctk.CTkButton(
             row, text="📊 分析圖片", height=36,
@@ -375,12 +409,11 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         )
         self._progress_label.grid(row=2, column=0, columnspan=2, sticky="w", pady=(2, 0))
 
-    def _build_results(self):
-        frame = ctk.CTkFrame(self, fg_color="transparent")
-        frame.grid(row=6, column=0, sticky="nsew", padx=16, pady=(10, 14))
+    def _build_results(self, parent):
+        frame = ctk.CTkFrame(parent, fg_color="transparent")
+        frame.grid(row=0, column=0, sticky="nsew", padx=0, pady=(2, 0))
         frame.grid_columnconfigure(0, weight=1)
         frame.grid_rowconfigure(1, weight=1)
-        self.grid_rowconfigure(6, weight=0)
 
         header_row = ctk.CTkFrame(frame, fg_color="transparent")
         header_row.grid(row=0, column=0, sticky="ew", pady=(0, 4))
@@ -408,7 +441,7 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         self._btn_export.grid(row=0, column=1, sticky="e")
 
         self._result_box = ctk.CTkTextbox(
-            frame, height=100,
+            frame,
             font=ctk.CTkFont(family="Consolas", size=11),
             fg_color=("gray92", "#111111"),
             border_width=1,
@@ -418,7 +451,7 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             scrollbar_button_hover_color=("gray60", "#00D1FF"),
             state="disabled",
         )
-        self._result_box.grid(row=1, column=0, sticky="ew")
+        self._result_box.grid(row=1, column=0, sticky="nsew")
 
     # ── 設定持久化 ───────────────────────────────────────────────
 
@@ -731,6 +764,10 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
 
     def _start_compress(self):
         if self._is_running:
+            # 第二次點擊 = 取消
+            self._cancel_requested = True
+            self._btn_start.configure(state="disabled", text="正在停止…")
+            self._append_result("\n⏹  使用者要求停止，將在當前檔案完成後中止剩餘批次。\n")
             return
         if not self._file_paths:
             self._append_result("⚠️  請先選擇至少一個檔案。\n")
@@ -758,7 +795,16 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
                                    border_color=("gray70", "#2E2E2E"))
 
         self._is_running = True
-        self._btn_start.configure(state="disabled", text="壓縮中…")
+        self._cancel_requested = False
+        # 「停止壓縮」狀態：紅色邊框，仍可按
+        self._btn_start.configure(
+            state="normal",
+            text="⏹  停止壓縮",
+            fg_color=("gray25", "#3D0D14"),
+            hover_color=("gray15", "#5A1520"),
+            border_color=("gray40", "#FF5577"),
+            text_color=("white", "#FF8899"),
+        )
         self._progress_bar.set(0)
         self._clear_results()
 
@@ -767,6 +813,7 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             opts=opts,
             on_progress=self._on_file_done,
             on_done=self._on_batch_done,
+            should_cancel=lambda: self._cancel_requested,
         )
 
     def _on_file_done(self, done: int, total: int, result: CompressResult):
@@ -794,11 +841,30 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         self.after(0, self._finish_batch, results)
 
     def _finish_batch(self, results: list[CompressResult]):
+        cancelled = self._cancel_requested
         self._is_running = False
+        self._cancel_requested = False
         self._last_results = results
-        self._btn_start.configure(state="normal", text="開始壓縮")
+        # 還原按鈕為「開始壓縮」外觀
+        self._btn_start.configure(
+            state="normal",
+            text="開始壓縮",
+            fg_color=("gray25", "#003D4D"),
+            hover_color=("gray15", "#005566"),
+            border_color=("gray40", "#00D1FF"),
+            text_color=("white", "#00D1FF"),
+        )
         ok = sum(1 for r in results if r.success)
-        self._progress_label.configure(text=f"完成：{ok}/{len(results)} 個成功")
+        total_planned = len(self._file_paths)
+        if cancelled:
+            self._progress_label.configure(
+                text=f"已停止：完成 {ok}/{len(results)} 個（共 {total_planned} 個）"
+            )
+            self._append_result(
+                f"\n⏹  批次已停止，共處理 {len(results)} / {total_planned} 個檔案。\n"
+            )
+        else:
+            self._progress_label.configure(text=f"完成：{ok}/{len(results)} 個成功")
         self._btn_export.configure(
             state="normal",
             text_color=("gray10", "#00D1FF"),

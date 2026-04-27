@@ -1,5 +1,15 @@
 # Changelog
 
+### ✨ 2026-04-27 - 雙窗格版面 + 停止壓縮 + 修正權限錯誤靜默問題
+**影響範圍**: `gui/widgets.py`、`gui/main_window.py`、`core/compressor.py`
+**解決**:
+- 新增 `CTkSplitter`（純 CTk 雙窗格分割器，水平 / 垂直雙用，把手 hover 轉青色，主題自動跟隨）
+- `_build_ui` 改為左右兩欄：左側放 DropZone / 選項 / 輸出 / 動作列，右側用垂直 `CTkSplitter` 上放已選檔案、下放壓縮結果
+- 視窗預設 `1100×720`、最小 `960×600`；`_list_scroll` 與 `_result_box` 移除固定高度改 `sticky="nsew"` 填滿父窗格
+- `compress_file` 把 `default_output_path`（內含 `os.makedirs`）與 `os.path.getsize` 包進 try/except，遇到 `PermissionError` 不再炸到 worker thread；`compress_batch` 加第二道防護
+- `compress_batch` 新增 `should_cancel: Callable[[], bool]` 參數，每檔開始前檢查；`_start_compress` 按鈕改為雙態（紅色「⏹ 停止壓縮」），按下設定 `_cancel_requested` flag 停止後續檔案
+**成果**: ✅ 已選檔案 / 壓縮結果可拖拉調整高度，不再被擠壓；網路磁碟權限錯誤正確顯示在結果區；長批次可中途停止
+
 ### ✨ 2026-04-27 - 已選檔案標題顯示總數
 **影響範圍**: `gui/main_window.py`
 **解決**: 標題 label 改為 `_file_count_label`，新增 `_update_file_count()` 在 `_add_file` / `_remove_file` / `_clear_files` 三處呼叫；有檔案時顯示「已選檔案  共 N 個」，無檔案時還原為「已選檔案」
