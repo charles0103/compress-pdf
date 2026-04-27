@@ -6,6 +6,7 @@ import customtkinter as ctk
 from tkinterdnd2 import DND_FILES, TkinterDnD
 
 from core.compressor import CompressOptions, CompressResult, compress_batch, analyze_file
+from core.pptx_compressor import analyze_pptx
 from utils.file_utils import format_size, size_delta_str
 from utils.settings import load_settings, save_settings
 from gui.widgets import DropZone, FileListItem, AnimatedBorderFrame, GradientDivider
@@ -433,6 +434,7 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         self._theme_btn.configure(text="☀️" if theme == "Dark" else "🌙")
         self._divider._draw()
         self._on_mode_change()
+        self._on_keep_filename_change()
 
     def _save_settings(self):
         save_settings({
@@ -471,19 +473,21 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         self._quality_label.configure(text=str(int(round(float(val)))))
 
     def _on_keep_filename_change(self):
-        # 勾選保留原始檔名時，提示使用者輸出目錄的行為
         if self._keep_filename_var.get():
-            output_dir = self._output_dir_var.get()
-            if output_dir == "（與原始檔案相同目錄）":
+            if self._output_dir_var.get() == "（與原始檔案相同目錄）":
                 self._output_dir_var.set("（自動建立 compressed/ 子資料夾）")
+        else:
+            if self._output_dir_var.get() == "（自動建立 compressed/ 子資料夾）":
+                self._output_dir_var.set("（與原始檔案相同目錄）")
 
     def _browse_files(self):
         paths = filedialog.askopenfilenames(
             title="選擇檔案",
             filetypes=[
-                ("支援的檔案", "*.pdf *.jpg *.jpeg"),
+                ("支援的檔案", "*.pdf *.jpg *.jpeg *.pptx"),
                 ("PDF 檔案", "*.pdf"),
                 ("JPEG 圖檔", "*.jpg *.jpeg"),
+                ("PowerPoint", "*.pptx"),
                 ("所有檔案", "*.*"),
             ],
         )
@@ -500,12 +504,16 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         try:
             paths = self.tk.splitlist(raw)
         except Exception:
-            # splitlist 失敗時手動清理大括號後以空白分割
             paths = [p.strip("{}") for p in raw.split()]
+        has_folder = False
         for p in paths:
             p = p.strip()
-            if p.lower().endswith((".pdf", ".jpg", ".jpeg")) and os.path.isfile(p):
+            if os.path.isdir(p):
+                has_folder = True
+            elif p.lower().endswith((".pdf", ".jpg", ".jpeg", ".pptx")) and os.path.isfile(p):
                 self._add_file(p)
+        if has_folder:
+            self._append_result("⚠️  不支援拖入資料夾，請直接拖入檔案。\n")
 
     def _on_drop_with_stop(self, event):
         self._drop_zone.stop_scan()
@@ -566,6 +574,10 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
                 self._analyze_jpg(path, name)
                 continue
 
+            if ext == ".pptx":
+                self._analyze_pptx(path, name)
+                continue
+
             result = analyze_file(path)
             if result is None:
                 self._append_result(f"❌ 無法分析：{name}\n")
@@ -602,6 +614,21 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             size_mb = os.path.getsize(path) / 1024 ** 2
             self._append_result(f"\n🖼️  {name}\n")
             self._append_result(f"   尺寸：{w} × {h} px，DPI：{dpi_str}，大小：{size_mb:.1f} MB\n")
+        except Exception as exc:
+            self._append_result(f"❌ 無法分析：{name}（{exc}）\n")
+
+    def _analyze_pptx(self, path: str, name: str) -> None:
+        try:
+            info = analyze_pptx(path)
+            size_mb = os.path.getsize(path) / 1024 ** 2
+            media_mb = info["total_media_bytes"] / 1024 ** 2
+            self._append_result(f"\n📊 {name}\n")
+            self._append_result(f"   檔案大小：{size_mb:.1f} MB\n")
+            self._append_result(
+                f"   媒體圖片：JPEG {info['jpeg']} 張 / PNG {info['png']} 張"
+                f" / 其他 {info['other']} 個\n"
+            )
+            self._append_result(f"   媒體總大小：{media_mb:.1f} MB\n")
         except Exception as exc:
             self._append_result(f"❌ 無法分析：{name}（{exc}）\n")
 

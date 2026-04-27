@@ -7,9 +7,12 @@ from typing import Callable
 from core.lossless import compress_lossless
 from core.image_optimizer import optimize_images, analyze_pdf_images, PdfAnalysisResult
 from core.jpg_compressor import compress_jpg
+from core.pptx_compressor import compress_pptx
 from utils.file_utils import default_output_path, preserve_timestamps
 
 _JPG_EXTS = {".jpg", ".jpeg"}
+_PPTX_EXT = ".pptx"
+_LEGACY_PPT_EXT = ".ppt"
 
 
 @dataclass
@@ -49,6 +52,10 @@ def compress_file(
     try:
         if ext in _JPG_EXTS:
             compress_jpg(input_path, output_path, opts.mode, opts.dpi, opts.quality)
+        elif ext == _PPTX_EXT:
+            compress_pptx(input_path, output_path, opts.mode, opts.dpi, opts.quality)
+        elif ext == _LEGACY_PPT_EXT:
+            raise ValueError("不支援舊版 .ppt，請在 PowerPoint 中另存為 .pptx 後再壓縮")
         elif opts.mode == 1:
             compress_lossless(input_path, output_path, opts.level)
         elif opts.mode == 2:
