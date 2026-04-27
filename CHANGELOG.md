@@ -1,5 +1,15 @@
 # Changelog
 
+### ✨ 2026-04-27 - 科技感 UI 視覺強化
+**影響範圍**: `gui/widgets.py`、`gui/main_window.py`
+**解決**:
+- 新增 `GradientDivider`：標題下方青色漸層分隔線（`#00D1FF`，兩端淡出）
+- 新增 `AnimatedBorderFrame`：滑鼠懸停時邊框 ~180ms 漸變為青色（深色模式）
+- `DropZone` 拖入時邊框循環閃爍、文字改為「⬇ 放開以加入檔案」
+- 按鈕、Slider、CheckBox、OptionMenu 全面改用青色 accent 配色
+- 全介面字型更換為 Segoe UI
+**成果**: ✅ 深色模式下呈現 HUD 科技感，淺色模式保持可讀性
+
 ### ✨ 2026-04-27 - 新增設定記憶功能
 **影響範圍**: 壓縮模式、DPI、圖片品質、保留日期、保留檔名、輸出資料夾、主題
 **解決**: 新增 `utils/settings.py`，關閉視窗時將所有參數儲存至 `%APPDATA%\compress-pdf\settings.json`，下次啟動自動還原

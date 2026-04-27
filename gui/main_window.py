@@ -7,7 +7,7 @@ from tkinterdnd2 import DND_FILES, TkinterDnD
 from core.compressor import CompressOptions, CompressResult, compress_batch, analyze_file
 from utils.file_utils import format_size, size_delta_str
 from utils.settings import load_settings, save_settings
-from gui.widgets import DropZone, FileListItem
+from gui.widgets import DropZone, FileListItem, AnimatedBorderFrame, GradientDivider
 
 
 DPI_OPTIONS = [
@@ -46,7 +46,9 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         self.drop_target_register(DND_FILES)
         self.dnd_bind("<<Drop>>", self._on_drop)
         self._drop_zone.drop_target_register(DND_FILES)
-        self._drop_zone.dnd_bind("<<Drop>>", self._on_drop)
+        self._drop_zone.dnd_bind("<<DragEnter>>", lambda _: self._drop_zone.start_scan())
+        self._drop_zone.dnd_bind("<<DragLeave>>", lambda _: self._drop_zone.stop_scan())
+        self._drop_zone.dnd_bind("<<Drop>>", self._on_drop_with_stop)
 
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
@@ -72,22 +74,25 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         ctk.CTkLabel(
             header,
             text="PDF 壓縮工具",
-            font=ctk.CTkFont(size=20, weight="bold"),
+            font=ctk.CTkFont(family="Segoe UI", size=20, weight="bold"),
+            text_color=("gray10", "#00D1FF"),
         ).grid(row=0, column=0, sticky="w")
 
         self._theme_btn = ctk.CTkButton(
             header,
             text="🌙",
-            width=36,
-            height=28,
+            width=36, height=28,
             fg_color="transparent",
-            hover_color=("gray80", "gray30"),
-            text_color=("gray10", "gray90"),
+            hover_color=("gray80", "#0D2530"),
+            text_color=("gray10", "#888888"),
             border_width=1,
-            border_color=("gray70", "gray50"),
+            border_color=("gray70", "#2E2E2E"),
             command=self._toggle_theme,
         )
         self._theme_btn.grid(row=0, column=1, sticky="e")
+
+        self._divider = GradientDivider(header)
+        self._divider.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(8, 2))
 
     def _build_drop_zone(self):
         self._drop_zone = DropZone(self, on_click=self._browse_files)
@@ -106,40 +111,50 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         ctk.CTkLabel(
             header_row,
             text="已選檔案",
-            font=ctk.CTkFont(size=12),
-            text_color=("gray40", "gray60"),
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            text_color=("gray40", "#555555"),
         ).grid(row=0, column=0, sticky="w")
 
         self._btn_clear_all = ctk.CTkButton(
             header_row,
             text="全部清除",
-            width=70,
-            height=22,
-            font=ctk.CTkFont(size=11),
+            width=70, height=22,
+            font=ctk.CTkFont(family="Segoe UI", size=11),
             fg_color="transparent",
-            hover_color=("gray80", "gray30"),
-            text_color=("gray30", "gray70"),
+            hover_color=("gray80", "#1A2A30"),
+            text_color=("gray30", "#888888"),
             border_width=1,
-            border_color=("gray70", "gray50"),
+            border_color=("gray70", "#2E2E2E"),
             command=self._clear_files,
         )
         self._btn_clear_all.grid(row=0, column=1, sticky="e")
 
         self._list_scroll = ctk.CTkScrollableFrame(
-            self._file_list_frame, height=180, fg_color=("gray92", "gray16")
+            self._file_list_frame, height=180,
+            fg_color=("gray90", "#161616"),
+            border_width=1,
+            border_color=("gray75", "#2E2E2E"),
         )
         self._list_scroll.grid(row=1, column=0, sticky="nsew", pady=(0, 4))
         self._list_scroll.grid_columnconfigure(0, weight=1)
 
     def _build_options(self):
-        opt_frame = ctk.CTkFrame(self)
+        opt_frame = AnimatedBorderFrame(
+            self,
+            fg_color=("gray94", "#232323"),
+            border_width=1,
+            border_color=("gray75", "#2E2E2E"),
+            corner_radius=10,
+        )
         opt_frame.grid(row=3, column=0, sticky="ew", padx=16, pady=(10, 0))
         opt_frame.grid_columnconfigure((0, 1), weight=1)
 
         # 壓縮模式
-        ctk.CTkLabel(opt_frame, text="壓縮模式", font=ctk.CTkFont(size=12)).grid(
-            row=0, column=0, columnspan=2, sticky="w", padx=12, pady=(10, 4)
-        )
+        ctk.CTkLabel(
+            opt_frame, text="壓縮模式",
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            text_color=("gray30", "#888888"),
+        ).grid(row=0, column=0, columnspan=2, sticky="w", padx=12, pady=(10, 4))
         self._mode_var = tk.IntVar(value=1)
         modes = [("無失真", 1), ("圖片優化", 2), ("高壓縮", 3)]
         mode_row = ctk.CTkFrame(opt_frame, fg_color="transparent")
@@ -150,30 +165,54 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
                 text=label,
                 variable=self._mode_var,
                 value=val,
+                font=ctk.CTkFont(family="Segoe UI", size=12),
+                border_color=("gray55", "#00D1FF"),
+                fg_color=("gray30", "#00D1FF"),
+                hover_color=("gray40", "#008FAD"),
                 command=self._on_mode_change,
             ).pack(side="left", padx=8)
 
         # 壓縮等級（pikepdf 9+ 已自動最佳化，此 slider 僅保留 UI 一致性）
         ctk.CTkLabel(
-            opt_frame, text="壓縮等級（自動）", font=ctk.CTkFont(size=12)
+            opt_frame, text="壓縮等級（自動）",
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            text_color=("gray30", "#888888"),
         ).grid(row=2, column=0, sticky="w", padx=12, pady=(6, 0))
-        self._level_label = ctk.CTkLabel(opt_frame, text="9", font=ctk.CTkFont(size=12))
+        self._level_label = ctk.CTkLabel(
+            opt_frame, text="9",
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            text_color=("gray30", "#00D1FF"),
+        )
         self._level_label.grid(row=2, column=1, sticky="e", padx=12)
 
         self._level_slider = ctk.CTkSlider(
             opt_frame, from_=1, to=9, number_of_steps=8,
+            button_color=("gray55", "#00D1FF"),
+            button_hover_color=("gray40", "#008FAD"),
+            progress_color=("gray55", "#00A8CC"),
             command=self._on_level_change,
             state="disabled",
         )
         self._level_slider.set(9)
-        self._level_slider.grid(row=3, column=0, columnspan=2, sticky="ew", padx=12, pady=(2, 8))
+        self._level_slider.grid(row=3, column=0, columnspan=2, sticky="ew",
+                                padx=12, pady=(2, 8))
 
         # 圖片解析度（僅對超過目標 DPI 的圖片降採樣，不會升採樣）
         ctk.CTkLabel(
-            opt_frame, text="圖片解析度（降採樣上限）", font=ctk.CTkFont(size=12)
+            opt_frame, text="圖片解析度（降採樣上限）",
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            text_color=("gray30", "#888888"),
         ).grid(row=4, column=0, sticky="w", padx=12, pady=(4, 0))
         self._dpi_menu = ctk.CTkOptionMenu(
-            opt_frame, values=DPI_OPTIONS, width=120,
+            opt_frame, values=DPI_OPTIONS, width=160,
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            fg_color=("gray80", "#1A1A1A"),
+            button_color=("gray65", "#2E2E2E"),
+            button_hover_color=("gray55", "#004D66"),
+            text_color=("gray10", "#00D1FF"),
+            dropdown_fg_color=("gray90", "#1A1A1A"),
+            dropdown_text_color=("gray10", "#BBBBBB"),
+            dropdown_hover_color=("gray80", "#0D2530"),
             command=lambda _: None,
         )
         self._dpi_menu.set("150 DPI（一般文件）")
@@ -181,17 +220,27 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
 
         # 圖片品質（越低壓縮率越高）
         ctk.CTkLabel(
-            opt_frame, text="圖片品質（越低檔案越小）", font=ctk.CTkFont(size=12)
+            opt_frame, text="圖片品質（越低檔案越小）",
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            text_color=("gray30", "#888888"),
         ).grid(row=5, column=0, sticky="w", padx=12, pady=(8, 0))
-        self._quality_label = ctk.CTkLabel(opt_frame, text="75", font=ctk.CTkFont(size=12))
+        self._quality_label = ctk.CTkLabel(
+            opt_frame, text="75",
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            text_color=("gray30", "#00D1FF"),
+        )
         self._quality_label.grid(row=5, column=1, sticky="e", padx=12)
 
         self._quality_slider = ctk.CTkSlider(
             opt_frame, from_=50, to=95, number_of_steps=45,
+            button_color=("gray55", "#00D1FF"),
+            button_hover_color=("gray40", "#008FAD"),
+            progress_color=("gray55", "#00A8CC"),
             command=self._on_quality_change,
         )
         self._quality_slider.set(75)
-        self._quality_slider.grid(row=6, column=0, columnspan=2, sticky="ew", padx=12, pady=(2, 10))
+        self._quality_slider.grid(row=6, column=0, columnspan=2, sticky="ew",
+                                  padx=12, pady=(2, 10))
 
         # 保留原始日期
         self._preserve_dates_var = tk.BooleanVar(value=True)
@@ -199,7 +248,11 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             opt_frame,
             text="保留原始檔案建立/修改日期",
             variable=self._preserve_dates_var,
-            font=ctk.CTkFont(size=12),
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            border_color=("gray55", "#2E2E2E"),
+            fg_color=("gray30", "#00D1FF"),
+            hover_color=("gray40", "#008FAD"),
+            checkmark_color=("white", "#001A22"),
         ).grid(row=7, column=0, columnspan=2, sticky="w", padx=12, pady=(0, 4))
 
         # 保留原始檔名
@@ -208,10 +261,15 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             opt_frame,
             text="保留原始檔名（輸出至 compressed/ 子資料夾）",
             variable=self._keep_filename_var,
-            font=ctk.CTkFont(size=12),
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            border_color=("gray55", "#2E2E2E"),
+            fg_color=("gray30", "#00D1FF"),
+            hover_color=("gray40", "#008FAD"),
+            checkmark_color=("white", "#001A22"),
             command=self._on_keep_filename_change,
         )
-        self._keep_filename_cb.grid(row=8, column=0, columnspan=2, sticky="w", padx=12, pady=(0, 10))
+        self._keep_filename_cb.grid(row=8, column=0, columnspan=2, sticky="w",
+                                    padx=12, pady=(0, 10))
 
         self._on_mode_change()
 
@@ -220,9 +278,11 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         row.grid(row=4, column=0, sticky="ew", padx=16, pady=(8, 0))
         row.grid_columnconfigure(0, weight=1)
 
-        ctk.CTkLabel(row, text="輸出資料夾", font=ctk.CTkFont(size=12)).grid(
-            row=0, column=0, sticky="w"
-        )
+        ctk.CTkLabel(
+            row, text="輸出資料夾",
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            text_color=("gray30", "#888888"),
+        ).grid(row=0, column=0, sticky="w")
         inner = ctk.CTkFrame(row, fg_color="transparent")
         inner.grid(row=1, column=0, sticky="ew")
         inner.grid_columnconfigure(0, weight=1)
@@ -232,17 +292,31 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             inner,
             textvariable=self._output_dir_var,
             state="readonly",
-            font=ctk.CTkFont(size=11),
+            font=ctk.CTkFont(family="Segoe UI", size=11),
+            fg_color=("gray90", "#1A1A1A"),
+            border_color=("gray70", "#2E2E2E"),
+            text_color=("gray20", "#888888"),
         ).grid(row=0, column=0, sticky="ew", padx=(0, 6))
 
         ctk.CTkButton(
-            inner, text="瀏覽", width=60, command=self._browse_output
+            inner, text="瀏覽", width=60,
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            fg_color=("gray75", "#1A3040"),
+            hover_color=("gray65", "#004D66"),
+            border_width=1,
+            border_color=("gray55", "#00D1FF"),
+            text_color=("gray10", "#00D1FF"),
+            command=self._browse_output,
         ).grid(row=0, column=1)
 
         ctk.CTkButton(
             inner, text="清除", width=60,
+            font=ctk.CTkFont(family="Segoe UI", size=12),
             fg_color="transparent",
+            hover_color=("gray80", "#2A1515"),
             border_width=1,
+            border_color=("gray70", "#2E2E2E"),
+            text_color=("gray30", "#666666"),
             command=lambda: self._output_dir_var.set("（與原始檔案相同目錄）"),
         ).grid(row=0, column=2, padx=(4, 0))
 
@@ -254,24 +328,42 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
 
         self._btn_analyze = ctk.CTkButton(
             row, text="📊 分析圖片", height=36,
-            font=ctk.CTkFont(size=12),
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            fg_color=("gray80", "#0D1F26"),
+            hover_color=("gray70", "#163040"),
+            border_width=1,
+            border_color=("gray55", "#00D1FF"),
+            text_color=("gray10", "#00D1FF"),
             command=self._analyze_files,
         )
         self._btn_analyze.grid(row=0, column=0, sticky="ew", padx=(0, 6))
 
         self._btn_start = ctk.CTkButton(
             row, text="開始壓縮", height=36,
-            font=ctk.CTkFont(size=12, weight="bold"),
+            font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
+            fg_color=("gray25", "#003D4D"),
+            hover_color=("gray15", "#005566"),
+            border_width=1,
+            border_color=("gray40", "#00D1FF"),
+            text_color=("white", "#00D1FF"),
             command=self._start_compress,
         )
         self._btn_start.grid(row=0, column=1, sticky="ew")
 
-        self._progress_bar = ctk.CTkProgressBar(row)
+        self._progress_bar = ctk.CTkProgressBar(
+            row,
+            progress_color=("gray40", "#00D1FF"),
+            fg_color=("gray80", "#1A1A1A"),
+            border_width=1,
+            border_color=("gray70", "#2E2E2E"),
+        )
         self._progress_bar.set(0)
         self._progress_bar.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(8, 0))
 
         self._progress_label = ctk.CTkLabel(
-            row, text="", font=ctk.CTkFont(size=11), text_color=("gray50", "gray50")
+            row, text="",
+            font=ctk.CTkFont(family="Segoe UI", size=11),
+            text_color=("gray50", "#555555"),
         )
         self._progress_label.grid(row=2, column=0, columnspan=2, sticky="w", pady=(2, 0))
 
@@ -284,12 +376,19 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
 
         ctk.CTkLabel(
             frame, text="壓縮結果",
-            font=ctk.CTkFont(size=12),
-            text_color=("gray40", "gray60"),
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            text_color=("gray40", "#555555"),
         ).grid(row=0, column=0, sticky="w", pady=(0, 4))
 
         self._result_box = ctk.CTkTextbox(
-            frame, height=100, font=ctk.CTkFont(family="Consolas", size=11),
+            frame, height=100,
+            font=ctk.CTkFont(family="Consolas", size=11),
+            fg_color=("gray92", "#111111"),
+            border_width=1,
+            border_color=("gray75", "#2E2E2E"),
+            text_color=("gray10", "#AAAAAA"),
+            scrollbar_button_color=("gray70", "#2E2E2E"),
+            scrollbar_button_hover_color=("gray60", "#00D1FF"),
             state="disabled",
         )
         self._result_box.grid(row=1, column=0, sticky="ew")
@@ -309,6 +408,7 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         theme = s.get("theme", "System")
         ctk.set_appearance_mode(theme)
         self._theme_btn.configure(text="☀️" if theme == "Dark" else "🌙")
+        self._divider._draw()
         self._on_mode_change()
 
     def _save_settings(self):
@@ -333,7 +433,7 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         new_mode = "Dark" if current == "Light" else "Light"
         ctk.set_appearance_mode(new_mode)
         self._theme_btn.configure(text="☀️" if new_mode == "Dark" else "🌙")
-
+        self._divider._draw()
     def _on_mode_change(self):
         mode = self._mode_var.get()
         dpi_state = "normal" if mode >= 2 else "disabled"
@@ -383,6 +483,10 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             p = p.strip()
             if p.lower().endswith((".pdf", ".jpg", ".jpeg")) and os.path.isfile(p):
                 self._add_file(p)
+
+    def _on_drop_with_stop(self, event):
+        self._drop_zone.stop_scan()
+        self._on_drop(event)
 
     def _add_file(self, path: str):
         if path in self._file_paths:
