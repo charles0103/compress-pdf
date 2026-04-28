@@ -210,6 +210,187 @@ class FileListItem(ctk.CTkFrame):
             self.label.configure(text_color=("gray20", "#BBBBBB"))
 
 
+class VirtualFileList(ctk.CTkFrame):
+    """虛擬化檔案清單：資料層保留所有檔案，畫面只 render 可視範圍內 widget。
+
+    支援數千個檔案不會卡頓，因為實際存在的 FileListItem 只有 ~10-20 個。
+    API 接近 CTkScrollableFrame：add_entry / remove_entry / clear / set_dimmed_paths。
+    """
+
+    ITEM_HEIGHT = 38  # FileListItem 加上 pady 後的格距
+    BUFFER = 3        # 可視範圍上下各預先 render 幾項，捲動更流暢
+
+    def __init__(self, master, on_remove,
+                 fg_color=("gray90", "#161616"),
+                 border_color=("gray75", _BORDER_IDLE),
+                 border_width=1,
+                 **kwargs):
+        super().__init__(master, fg_color=fg_color,
+                         border_color=border_color,
+                         border_width=border_width, **kwargs)
+
+        self._on_remove = on_remove
+        self._entries: list[tuple[str, int]] = []
+        self._path_set: set[str] = set()
+        self._dimmed_paths: set[str] = set()
+        self._items: dict[int, tuple] = {}  # idx -> (FileListItem, canvas_window_id)
+
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(0, weight=1)
+
+        # 內部 canvas（決定可視範圍與捲動）
+        bg_color = self._apply_appearance_mode(fg_color)
+        self._canvas = tk.Canvas(
+            self, highlightthickness=0, borderwidth=0, bg=bg_color,
+        )
+        self._canvas.grid(row=0, column=0, sticky="nsew", padx=1, pady=1)
+
+        # 捲軸
+        self._scrollbar = ctk.CTkScrollbar(
+            self, command=self._canvas.yview,
+            button_color=("gray70", "#2E2E2E"),
+            button_hover_color=("gray60", "#004D66"),
+        )
+        self._scrollbar.grid(row=0, column=1, sticky="ns", pady=1)
+        self._scrollbar_width = self._scrollbar.cget("width")
+        self._scrollbar.configure(width=0)
+        self._canvas.configure(yscrollcommand=self._on_scrollbar_update)
+
+        # 事件
+        self._canvas.bind("<Configure>", self._on_canvas_configure)
+        self._canvas.bind("<MouseWheel>", self._on_mousewheel)
+        self._canvas.bind("<Button-4>", lambda e: self._canvas.yview_scroll(-1, "units"))
+        self._canvas.bind("<Button-5>", lambda e: self._canvas.yview_scroll(1, "units"))
+
+    # ── 內部事件 ─────────────────────────────────────────────────
+
+    def _on_scrollbar_update(self, *args):
+        self._scrollbar.set(*args)
+        self._render()
+
+    def _on_canvas_configure(self, _=None):
+        self._update_scrollregion()
+        self._update_scrollbar_visibility()
+        self._render()
+        # 更新所有可視 widget 寬度（canvas 寬度可能改變）
+        canvas_w = self._canvas.winfo_width()
+        if canvas_w > 1:
+            for _idx, (_item, win_id) in self._items.items():
+                self._canvas.itemconfigure(win_id, width=canvas_w)
+
+    def _on_mousewheel(self, event):
+        # Windows: event.delta 正負 120 倍數
+        self._canvas.yview_scroll(int(-event.delta / 120), "units")
+
+    # ── 內部渲染 ─────────────────────────────────────────────────
+
+    def _update_scrollregion(self):
+        total = len(self._entries) * self.ITEM_HEIGHT
+        self._canvas.configure(scrollregion=(0, 0, 0, total))
+
+    def _update_scrollbar_visibility(self):
+        canvas_h = self._canvas.winfo_height()
+        total_h = len(self._entries) * self.ITEM_HEIGHT
+        if total_h > canvas_h:
+            self._scrollbar.configure(width=self._scrollbar_width)
+        else:
+            self._scrollbar.configure(width=0)
+
+    def _visible_range(self):
+        canvas_h = self._canvas.winfo_height()
+        if canvas_h < 10 or not self._entries:
+            return 0, 0
+        scroll_top = self._canvas.canvasy(0)
+        first = max(0, int(scroll_top // self.ITEM_HEIGHT) - self.BUFFER)
+        last = min(len(self._entries),
+                   int((scroll_top + canvas_h) // self.ITEM_HEIGHT) + self.BUFFER + 1)
+        return first, last
+
+    def _render(self):
+        first, last = self._visible_range()
+        canvas_w = max(self._canvas.winfo_width(), 100)
+
+        # 1. 移除可視範圍外的 widget
+        for idx in list(self._items.keys()):
+            if idx < first or idx >= last:
+                item, win_id = self._items[idx]
+                self._canvas.delete(win_id)
+                item.destroy()
+                del self._items[idx]
+
+        # 2. 為可視範圍內的索引建立 widget（若尚未存在）
+        for idx in range(first, last):
+            if idx in self._items or idx >= len(self._entries):
+                continue
+            path, size = self._entries[idx]
+            item = FileListItem(
+                self._canvas, file_path=path,
+                on_remove=self._on_remove, size_bytes=size,
+            )
+            if path in self._dimmed_paths:
+                item.set_dimmed(True)
+            y = idx * self.ITEM_HEIGHT
+            win_id = self._canvas.create_window(
+                0, y, anchor="nw", window=item,
+                width=canvas_w, height=self.ITEM_HEIGHT - 4,
+            )
+            self._items[idx] = (item, win_id)
+
+    def _clear_visible_widgets(self):
+        for _idx, (item, win_id) in list(self._items.items()):
+            self._canvas.delete(win_id)
+            item.destroy()
+        self._items.clear()
+
+    # ── 公開 API ─────────────────────────────────────────────────
+
+    def add_entry(self, path: str, size_bytes: int) -> bool:
+        if path in self._path_set:
+            return False
+        self._entries.append((path, size_bytes))
+        self._path_set.add(path)
+        self._update_scrollregion()
+        self._update_scrollbar_visibility()
+        self._render()
+        return True
+
+    def remove_entry(self, path: str):
+        if path not in self._path_set:
+            return
+        self._entries = [(p, s) for p, s in self._entries if p != path]
+        self._path_set.discard(path)
+        # 索引重排，需重建可視 widget
+        self._clear_visible_widgets()
+        self._update_scrollregion()
+        self._update_scrollbar_visibility()
+        self._render()
+
+    def clear(self):
+        self._entries.clear()
+        self._path_set.clear()
+        self._clear_visible_widgets()
+        self._update_scrollregion()
+        self._update_scrollbar_visibility()
+
+    def set_dimmed_paths(self, dimmed: set[str]):
+        self._dimmed_paths = dimmed
+        for idx, (item, _win_id) in self._items.items():
+            path = self._entries[idx][0]
+            item.set_dimmed(path in dimmed)
+
+    def get_paths(self) -> list[str]:
+        return [p for p, _ in self._entries]
+
+    def total_size(self) -> int:
+        return sum(s for _, s in self._entries)
+
+    def count(self) -> int:
+        return len(self._entries)
+
+    def __contains__(self, path: str) -> bool:
+        return path in self._path_set
+
+
 class DropZone(ctk.CTkButton):
     """拖放 / 點擊選檔區域，拖入時顯示青色掃描閃爍動畫。
 

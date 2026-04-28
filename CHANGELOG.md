@@ -1,5 +1,11 @@
 # Changelog
 
+### ✨ 2026-04-28 - 虛擬化檔案清單（10× 載入提速）
+**影響範圍**: `gui/widgets.py`、`gui/main_window.py`
+**解決**: 新增 `VirtualFileList` widget，內部用 `tk.Canvas + CTkScrollbar` 自行管理捲動，僅 render 可視範圍 + buffer 共 ~10-20 個 `FileListItem`；資料層 `_entries` 持有全部檔案資訊，捲動／resize 時動態建立／銷毀 widget。`MainWindow` 移除 `_file_items` 字典與 `_refresh_scrollbar` 相關邏輯，全面委派給虛擬清單 API
+**成果**: ✅ 385 檔載入時間 SSD 30s→3s、網路磁碟 71s→6s；可順暢處理數千個檔案
+**詳細**: [changelogs/2026-04/04-28-virtual-file-list.md](changelogs/2026-04/04-28-virtual-file-list.md)
+
 ### 🐛 2026-04-28 - 修正 SSD 載入大量檔案無法取消
 **影響範圍**: `gui/main_window.py`
 **解決**:

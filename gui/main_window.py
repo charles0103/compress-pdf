@@ -11,7 +11,7 @@ from core.compressor import CompressOptions, CompressResult, compress_batch, ana
 from core.pptx_compressor import analyze_pptx
 from utils.file_utils import format_size, size_delta_str
 from utils.settings import load_settings, save_settings
-from gui.widgets import DropZone, FileListItem, AnimatedBorderFrame, GradientDivider, CTkSplitter
+from gui.widgets import DropZone, FileListItem, AnimatedBorderFrame, GradientDivider, CTkSplitter, VirtualFileList
 
 
 DPI_OPTIONS = [
@@ -40,7 +40,6 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         ctk.set_default_color_theme("blue")
 
         self._file_paths: list[str] = []
-        self._file_items: dict[str, FileListItem] = {}
         self._is_running = False
         self._cancel_requested = False
         self._load_cancelled = False
@@ -170,18 +169,11 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         )
         self._btn_clear_all.grid(row=0, column=1, sticky="e")
 
-        self._list_scroll = ctk.CTkScrollableFrame(
+        self._file_list = VirtualFileList(
             self._file_list_frame,
-            fg_color=("gray90", "#161616"),
-            border_width=1,
-            border_color=("gray75", "#2E2E2E"),
+            on_remove=self._remove_file,
         )
-        self._list_scroll.grid(row=1, column=0, sticky="nsew", pady=(0, 0))
-        self._list_scroll.grid_columnconfigure(0, weight=1)
-        self._scrollbar_width = self._list_scroll._scrollbar.cget("width")
-        self._list_scroll._scrollbar.configure(width=0)
-        self._list_scroll._parent_canvas.bind("<Configure>", lambda _: self._refresh_scrollbar(), add="+")
-        self._list_scroll.bind("<Configure>", lambda _: self._refresh_scrollbar(), add="+")
+        self._file_list.grid(row=1, column=0, sticky="nsew", pady=(0, 0))
 
     def _build_options(self, parent, row: int):
         opt_frame = AnimatedBorderFrame(
@@ -599,51 +591,33 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         self._drop_zone.stop_scan()
         self._on_drop(event)
 
-    def _add_file(self, path: str, size_bytes: int | None = None):
+    def _add_file(self, path: str, size_bytes: int | None = None,
+                  defer_refresh: bool = False):
         if path in self._file_paths:
             return
         if size_bytes is None and not os.path.isfile(path):
             return
-        try:
-            item = FileListItem(
-                self._list_scroll,
-                file_path=path,
-                on_remove=self._remove_file,
-                size_bytes=size_bytes,
-            )
-        except Exception as exc:
-            self._append_result(f"⚠️  無法載入 {os.path.basename(path)}：{exc}\n")
+        if size_bytes is None:
+            try:
+                size_bytes = os.path.getsize(path)
+            except Exception as exc:
+                self._append_result(f"⚠️  無法載入 {os.path.basename(path)}：{exc}\n")
+                return
+        if not self._file_list.add_entry(path, size_bytes):
             return
         self._file_paths.append(path)
-        item.grid(
-            row=len(self._file_items),
-            column=0,
-            sticky="ew",
-            pady=2,
-        )
-        self._file_items[path] = item
-        self._list_scroll.grid_columnconfigure(0, weight=1)
-        self._update_file_count()
+        if not defer_refresh:
+            self._update_file_count()
 
     def _update_file_count(self):
         n = len(self._file_paths)
         if n == 0:
             self._file_count_label.configure(text="已選檔案")
         else:
-            total_mb = sum(item.size_bytes for item in self._file_items.values()) / 1024 ** 2
+            total_mb = self._file_list.total_size() / 1024 ** 2
             size_str = f"{total_mb:.1f} MB" if total_mb < 1024 else f"{total_mb / 1024:.2f} GB"
             self._file_count_label.configure(text=f"已選檔案  共 {n} 個  /  {size_str}")
         self._refresh_list_dim()
-        self.after(50, self._refresh_scrollbar)
-
-    def _refresh_scrollbar(self):
-        self._list_scroll.update_idletasks()
-        canvas_h = self._list_scroll._parent_canvas.winfo_height()
-        content_h = self._list_scroll.winfo_reqheight()
-        if content_h > canvas_h:
-            self._list_scroll._scrollbar.configure(width=self._scrollbar_width)
-        else:
-            self._list_scroll._scrollbar.configure(width=0)
 
     def _refresh_list_dim(self):
         allowed = set()
@@ -654,9 +628,12 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         if self._fmt_pptx_var.get():
             allowed.add(".pptx")
         all_checked = len(allowed) == 4  # pdf + jpg + jpeg + pptx
-        for path, item in self._file_items.items():
-            dimmed = not all_checked and Path(path).suffix.lower() not in allowed
-            item.set_dimmed(dimmed)
+        if all_checked:
+            self._file_list.set_dimmed_paths(set())
+        else:
+            dimmed = {p for p in self._file_paths
+                      if Path(p).suffix.lower() not in allowed}
+            self._file_list.set_dimmed_paths(dimmed)
 
     # ── 非同步批次載入（避免網路磁碟 stat 阻塞 GUI）───────────────────
 
@@ -746,7 +723,9 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             for path, size in batch:
                 if self._load_cancelled:
                     break
-                self._add_file(path, size_bytes=size)
+                self._add_file(path, size_bytes=size, defer_refresh=True)
+            # 批次結束才更新一次計數與 dim
+            self._update_file_count()
         finally:
             if batch_done is not None:
                 batch_done.set()
@@ -769,18 +748,14 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         self._progress_label.configure(text=text)
 
     def _remove_file(self, path: str):
-        if path in self._file_items:
-            self._file_items[path].destroy()
-            del self._file_items[path]
         if path in self._file_paths:
             self._file_paths.remove(path)
+        self._file_list.remove_entry(path)
         self._update_file_count()
 
     def _clear_files(self):
-        for item in self._file_items.values():
-            item.destroy()
-        self._file_items.clear()
         self._file_paths.clear()
+        self._file_list.clear()
         self._update_file_count()
 
     def _clear_or_cancel_load(self):
