@@ -176,6 +176,7 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         )
         self._list_scroll.grid(row=1, column=0, sticky="nsew", pady=(0, 0))
         self._list_scroll.grid_columnconfigure(0, weight=1)
+        self._list_scroll._scrollbar.grid_remove()
 
     def _build_options(self, parent, row: int):
         opt_frame = AnimatedBorderFrame(
@@ -586,8 +587,10 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         n = len(self._file_paths)
         if n == 0:
             self._file_count_label.configure(text="已選檔案")
+            self._list_scroll._scrollbar.grid_remove()
         else:
             self._file_count_label.configure(text=f"已選檔案  共 {n} 個")
+            self._list_scroll._scrollbar.grid()
 
     # ── 非同步批次載入（避免網路磁碟 stat 阻塞 GUI）───────────────────
 

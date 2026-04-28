@@ -1,5 +1,10 @@
 # Changelog
 
+### 🐛 2026-04-28 - 無檔案時隱藏捲軸
+**影響範圍**: `gui/main_window.py`
+**解決**: `CTkScrollableFrame` 捲軸預設常駐顯示；改為啟動時呼叫 `_scrollbar.grid_remove()` 初始隱藏，`_update_file_count()` 中依檔案數動態 `grid()` / `grid_remove()`
+**成果**: ✅ 已選檔案區空白時不再顯示多餘捲軸
+
 ### ✨ 2026-04-27 - 雙窗格版面 + 停止壓縮 + 修正權限錯誤靜默問題
 **影響範圍**: `gui/widgets.py`、`gui/main_window.py`、`core/compressor.py`
 **解決**:
