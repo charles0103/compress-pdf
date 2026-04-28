@@ -1,5 +1,16 @@
 # Changelog
 
+### 📦 2026-04-28 - exe 打包準備 + 應用程式 icon
+**影響範圍**: `main.py`、`requirements.txt`、`gui/main_window.py`、`build.spec`、`build.bat`、`tools/make_icon.py`、`app.ico`
+**解決**:
+- `main.py` 加上 `sys.frozen` 偵測，exe 與開發模式都正確設 `sys.path`
+- 移除未使用的 `pymupdf` 依賴（節省打包約 200MB），補上 `Pillow`
+- 新增 `build.spec`：collect_all tkinterdnd2/customtkinter/pikepdf、hidden_import `pikepdf.models.ctm`、排除 PyQt/matplotlib 等冗餘依賴、`console=False`、onedir 模式（並行壓縮效率最佳）
+- 新增 `build.bat` 一鍵打包腳本
+- 新增 `tools/make_icon.py` 程式化產生多解析度 `app.ico`（青藍 #00D1FF 主題色，「PDF」字樣 + 壓縮箭頭）
+- `MainWindow` 新增 `_apply_window_icon()`，視窗左上角載入 `app.ico`
+**成果**: ✅ 打包 exe 啟動不缺資源、ProcessPoolExecutor 並行壓縮可正常運作、視窗與 exe 統一 icon
+
 ### ✨ 2026-04-28 - 檔名樣板 UI 簡化 + 停止壓縮真正中斷 + 輸出資料夾邏輯修正
 **影響範圍**: `gui/main_window.py`、`core/compressor.py`、`utils/file_utils.py`
 **解決**:

@@ -1,7 +1,12 @@
 import sys
 import os
 
-sys.path.insert(0, os.path.dirname(__file__))
+if getattr(sys, "frozen", False):
+    _BASE = getattr(sys, "_MEIPASS", os.path.dirname(sys.executable))
+else:
+    _BASE = os.path.dirname(os.path.abspath(__file__))
+if _BASE not in sys.path:
+    sys.path.insert(0, _BASE)
 
 import customtkinter as ctk
 from gui.main_window import MainWindow

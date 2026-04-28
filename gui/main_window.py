@@ -1,4 +1,5 @@
 import os
+import sys
 import threading
 import time
 import tkinter as tk
@@ -36,6 +37,7 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         self.geometry("1100x770")
         self.minsize(960, 750)
         self.resizable(True, True)
+        self._apply_window_icon()
 
         ctk.set_appearance_mode("System")
         ctk.set_default_color_theme("blue")
@@ -60,6 +62,18 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         self._drop_zone.dnd_bind("<<Drop>>", self._on_drop_with_stop)
 
         self.protocol("WM_DELETE_WINDOW", self._on_close)
+
+    def _apply_window_icon(self):
+        if getattr(sys, "frozen", False):
+            base = getattr(sys, "_MEIPASS", os.path.dirname(sys.executable))
+        else:
+            base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        ico_path = os.path.join(base, "app.ico")
+        if os.path.exists(ico_path):
+            try:
+                self.iconbitmap(ico_path)
+            except Exception:
+                pass
 
     # ── UI 建構 ──────────────────────────────────────────────────
 
