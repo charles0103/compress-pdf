@@ -33,8 +33,8 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         self.TkdndVersion = TkinterDnD._require(self)
 
         self.title("PDF 壓縮工具")
-        self.geometry("1100x720")
-        self.minsize(960, 680)
+        self.geometry("1100x740")
+        self.minsize(960, 720)
         self.resizable(True, True)
 
         ctk.set_appearance_mode("System")

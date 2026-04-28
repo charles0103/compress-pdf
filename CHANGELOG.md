@@ -1,5 +1,23 @@
 # Changelog
 
+### 🐛 2026-04-28 - 修正底部進度文字被裁切
+**影響範圍**: `gui/main_window.py`
+**解決**: 預設視窗高度 720→740、最小高度 680→720，確保壓縮完成後進度標籤不被裁切
+**成果**: ✅ 進度文字完整顯示，無多餘空白
+
+### ✨ 2026-04-28 - 輸出檔名樣板 + 多進程並行壓縮
+**影響範圍**: `core/compressor.py`、`gui/main_window.py`、`utils/file_utils.py`、`utils/settings.py`、`main.py`
+**解決**:
+- `default_output_path` 新增 `filename_template` / `file_index` 參數，支援 `{name}` `{date}` `{index}` 佔位符
+- `CompressOptions` 新增 `filename_template`、`file_index`；`compress_batch` 新增 `max_workers` 參數
+- 並行壓縮改用 `ProcessPoolExecutor`（真正多進程，繞過 GIL），`ThreadPoolExecutor` 因 GIL 限制對 CPU 密集壓縮無效
+- 模組頂層新增 `_compress_process_worker`（pickle 序列化要求）；`main.py` 加入 `freeze_support()`
+- GUI 選項區新增「並行壓縮執行緒」分段按鈕（1 順序 / 2 / 4 / 自動）及「輸出檔名樣板」輸入框
+- 壓縮結果區與匯出日誌統一顯示實際壁鐘耗時；並行時額外顯示 CPU 總時間
+- 修正日誌匯出時重新計算耗時導致數值錯誤（改存 `_last_wall_elapsed`）
+- 左欄版面改為固定顯示（移除捲動框），縮減選項面板 ~60px 間距，最小視窗高度調整為 680px，進度標籤補底部 padding
+**成果**: ✅ 多核心機器並行壓縮實際加速；檔名可自訂；壓縮耗時統計正確；左欄全部功能無需捲動
+
 ### ✨ 2026-04-28 - 虛擬化檔案清單（10× 載入提速）
 **影響範圍**: `gui/widgets.py`、`gui/main_window.py`
 **解決**: 新增 `VirtualFileList` widget，內部用 `tk.Canvas + CTkScrollbar` 自行管理捲動，僅 render 可視範圍 + buffer 共 ~10-20 個 `FileListItem`；資料層 `_entries` 持有全部檔案資訊，捲動／resize 時動態建立／銷毀 widget。`MainWindow` 移除 `_file_items` 字典與 `_refresh_scrollbar` 相關邏輯，全面委派給虛擬清單 API
