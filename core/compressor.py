@@ -1,6 +1,7 @@
 import os
 import tempfile
 import threading
+import time
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -34,6 +35,7 @@ class CompressResult:
     size_after: int
     success: bool
     error: str = ""
+    elapsed: float = 0.0
 
 
 def compress_file(
@@ -147,11 +149,13 @@ def compress_batch(
         for i, path in enumerate(file_paths):
             if should_cancel and should_cancel():
                 break
+            t0 = time.perf_counter()
             try:
                 result = compress_file(path, opts)
             except Exception as exc:
                 # compress_file 自身應該已捕捉所有例外，這裡是最後一道防線
                 result = CompressResult(path, "", 0, 0, False, f"未預期錯誤：{exc}")
+            result.elapsed = time.perf_counter() - t0
             results.append(result)
             on_progress(i + 1, total, result)
         on_done(results)

@@ -1,5 +1,13 @@
 # Changelog
 
+### ✨ 2026-04-28 - 壓縮耗時記錄
+**影響範圍**: `core/compressor.py`、`gui/main_window.py`
+**解決**:
+- `CompressResult` 新增 `elapsed: float` 欄位；`compress_batch` 以 `time.perf_counter()` 計時每個檔案
+- 即時 log 與匯出日誌每筆結果後附上耗時（如 `2.3s`）
+- 匯出日誌統計摘要新增「總壓縮時間」
+**成果**: ✅ 可快速判斷各檔案壓縮效率
+
 ### ✨ 2026-04-28 - 壓縮格式篩選 + 進度百分比
 **影響範圍**: `gui/main_window.py`、`gui/widgets.py`、`utils/settings.py`
 **解決**:

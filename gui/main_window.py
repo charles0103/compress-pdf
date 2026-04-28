@@ -178,6 +178,8 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         self._list_scroll.grid(row=1, column=0, sticky="nsew", pady=(0, 0))
         self._list_scroll.grid_columnconfigure(0, weight=1)
         self._list_scroll._scrollbar.grid_remove()
+        self._list_scroll._parent_canvas.bind("<Configure>", lambda _: self._refresh_scrollbar())
+        self._list_scroll.bind("<Configure>", lambda _: self._refresh_scrollbar())
 
     def _build_options(self, parent, row: int):
         opt_frame = AnimatedBorderFrame(
@@ -625,11 +627,19 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         n = len(self._file_paths)
         if n == 0:
             self._file_count_label.configure(text="已選檔案")
-            self._list_scroll._scrollbar.grid_remove()
         else:
             self._file_count_label.configure(text=f"已選檔案  共 {n} 個")
-            self._list_scroll._scrollbar.grid()
         self._refresh_list_dim()
+        self.after(50, self._refresh_scrollbar)
+
+    def _refresh_scrollbar(self):
+        self._list_scroll.update_idletasks()
+        canvas_h = self._list_scroll._parent_canvas.winfo_height()
+        content_h = self._list_scroll.winfo_reqheight()
+        if content_h > canvas_h:
+            self._list_scroll._scrollbar.grid()
+        else:
+            self._list_scroll._scrollbar.grid_remove()
 
     def _refresh_list_dim(self):
         allowed = set()
@@ -896,6 +906,7 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         self._progress_pct_label.configure(text=f"{pct:.0%}")
 
         name = os.path.basename(result.input_path)
+        elapsed = f"{result.elapsed:.1f}s"
         if result.success:
             before = format_size(result.size_before)
             after = format_size(result.size_after)
@@ -903,11 +914,11 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             out_dir = os.path.dirname(result.output_path)
             self._append_result(
                 f"✅  {name}\n"
-                f"    {before} → {after}  ({delta})\n"
+                f"    {before} → {after}  ({delta})  {elapsed}\n"
                 f"    輸出：{out_dir}\n"
             )
         else:
-            self._append_result(f"❌  {name}\n    錯誤：{result.error}\n")
+            self._append_result(f"❌  {name}  {elapsed}\n    錯誤：{result.error}\n")
 
     def _on_batch_done(self, results: list[CompressResult]):
         self.after(0, self._finish_batch, results)
@@ -968,23 +979,27 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
                 after = format_size(r.size_after)
                 delta = size_delta_str(r.size_before, r.size_after)
                 out_dir = os.path.dirname(r.output_path)
+                elapsed = f"{r.elapsed:.1f}s"
                 lines.append(f"✅  {name}")
-                lines.append(f"    {before} → {after}  ({delta})")
+                lines.append(f"    {before} → {after}  ({delta})  {elapsed}")
                 lines.append(f"    輸出：{out_dir}")
                 saved = r.size_before - r.size_after
                 total_saved += saved
                 if r.size_before > 0:
                     ratios.append(saved / r.size_before * 100)
             else:
-                lines.append(f"❌  {name}")
+                elapsed = f"{r.elapsed:.1f}s"
+                lines.append(f"❌  {name}  {elapsed}")
                 lines.append(f"    錯誤：{r.error}")
 
         ok = sum(1 for r in self._last_results if r.success)
         total = len(self._last_results)
+        total_elapsed = sum(r.elapsed for r in self._last_results)
         lines += ["", "[統計摘要]", f"成功：{ok} / {total}"]
         if total_saved > 0:
             avg_ratio = sum(ratios) / len(ratios) if ratios else 0
             lines.append(f"總計節省：{format_size(total_saved)}（平均 -{avg_ratio:.0f}%）")
+        lines.append(f"總壓縮時間：{total_elapsed:.1f}s")
 
         return "\n".join(lines) + "\n"
 
