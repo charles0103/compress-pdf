@@ -177,9 +177,10 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         )
         self._list_scroll.grid(row=1, column=0, sticky="nsew", pady=(0, 0))
         self._list_scroll.grid_columnconfigure(0, weight=1)
-        self._list_scroll._scrollbar.grid_remove()
-        self._list_scroll._parent_canvas.bind("<Configure>", lambda _: self._refresh_scrollbar())
-        self._list_scroll.bind("<Configure>", lambda _: self._refresh_scrollbar())
+        self._scrollbar_width = self._list_scroll._scrollbar.cget("width")
+        self._list_scroll._scrollbar.configure(width=0)
+        self._list_scroll._parent_canvas.bind("<Configure>", lambda _: self._refresh_scrollbar(), add="+")
+        self._list_scroll.bind("<Configure>", lambda _: self._refresh_scrollbar(), add="+")
 
     def _build_options(self, parent, row: int):
         opt_frame = AnimatedBorderFrame(
@@ -628,7 +629,9 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         if n == 0:
             self._file_count_label.configure(text="已選檔案")
         else:
-            self._file_count_label.configure(text=f"已選檔案  共 {n} 個")
+            total_mb = sum(item.size_bytes for item in self._file_items.values()) / 1024 ** 2
+            size_str = f"{total_mb:.1f} MB" if total_mb < 1024 else f"{total_mb / 1024:.2f} GB"
+            self._file_count_label.configure(text=f"已選檔案  共 {n} 個  /  {size_str}")
         self._refresh_list_dim()
         self.after(50, self._refresh_scrollbar)
 
@@ -637,9 +640,9 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         canvas_h = self._list_scroll._parent_canvas.winfo_height()
         content_h = self._list_scroll.winfo_reqheight()
         if content_h > canvas_h:
-            self._list_scroll._scrollbar.grid()
+            self._list_scroll._scrollbar.configure(width=self._scrollbar_width)
         else:
-            self._list_scroll._scrollbar.grid_remove()
+            self._list_scroll._scrollbar.configure(width=0)
 
     def _refresh_list_dim(self):
         allowed = set()

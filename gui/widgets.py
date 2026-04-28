@@ -177,6 +177,7 @@ class FileListItem(ctk.CTkFrame):
         name    = os.path.basename(file_path)
         if size_bytes is None:
             size_bytes = os.path.getsize(file_path)
+        self.size_bytes = size_bytes
         size_mb = size_bytes / 1024 ** 2
 
         self.label = ctk.CTkLabel(

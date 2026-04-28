@@ -1,5 +1,13 @@
 # Changelog
 
+### 🐛 2026-04-28 - 已選檔案捲軸自動隱藏與滾動修復
+**影響範圍**: `gui/main_window.py`、`gui/widgets.py`
+**解決**:
+- `FileListItem` 公開 `size_bytes` 屬性，標題列顯示「已選檔案 共 N 個 / 總容量」（自動切換 MB / GB）
+- 改用 `configure(width=0)` 取代 `grid_remove()` 控制捲軸顯示，避免 canvas 寬度變動破壞 `CTkScrollableFrame` 內部 `create_window` 與 scrollregion 同步
+- `<Configure>` binding 加上 `add="+"`，避免覆寫 `CTkScrollableFrame` 內建用來更新 scrollregion 的 handler，修正捲軸顯示但無法滾動的問題
+**成果**: ✅ 內容溢出時捲軸自動出現且可正常拖動；標題列即時顯示總容量
+
 ### ✨ 2026-04-28 - 壓縮耗時記錄
 **影響範圍**: `core/compressor.py`、`gui/main_window.py`
 **解決**:
