@@ -31,6 +31,18 @@ utils/
   file_utils.py            # 路徑生成、大小格式化、Windows SetFileTime 時間戳還原
 ```
 
+
+## 工具與 MCP 使用規範
+
+- 程式碼探索和編輯**優先使用** Serena MCP 工具（read_file、replace_content、find_symbol、get_symbols_overview 等）
+- Serena 工具為 deferred 狀態，**使用前必須先透過 ToolSearch 載入 schema**：
+  ```
+  ToolSearch: select:mcp__plugin_serena_serena__read_file,mcp__plugin_serena_serena__find_symbol,mcp__plugin_serena_serena__get_symbols_overview,mcp__plugin_serena_serena__search_for_pattern,mcp__plugin_serena_serena__replace_content
+  ```
+- Serena 已激活時，**禁止**改用標準 Read/Edit 工具；若 Serena 無法激活，才退回使用標準工具
+- 大型重構時使用 Serena 的搜尋和替換功能
+
+
 ### 資料流
 
 1. `MainWindow` 收集使用者設定，組成 `CompressOptions`
