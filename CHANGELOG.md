@@ -1,5 +1,13 @@
 # Changelog
 
+### ✨ 2026-04-28 - 壓縮格式篩選 + 進度百分比
+**影響範圍**: `gui/main_window.py`、`gui/widgets.py`、`utils/settings.py`
+**解決**:
+- 選項區新增「壓縮格式」checkbox（PDF / JPG / PPTX），預設全勾；取消勾選後，已選檔案清單中不符合格式的條目即時變暗，壓縮時自動略過
+- 格式勾選狀態寫入 `settings.json`，重啟後還原
+- 進度列右側新增青色百分比 label（`0%` → `100%`），開始新批次時清空
+**成果**: ✅ 可單獨壓縮指定格式；進度一目瞭然
+
 ### 🐛 2026-04-28 - 無檔案時隱藏捲軸
 **影響範圍**: `gui/main_window.py`
 **解決**: `CTkScrollableFrame` 捲軸預設常駐顯示；改為啟動時呼叫 `_scrollbar.grid_remove()` 初始隱藏，`_update_file_count()` 中依檔案數動態 `grid()` / `grid_remove()`

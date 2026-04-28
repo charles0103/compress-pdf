@@ -2,6 +2,7 @@ import os
 import threading
 import tkinter as tk
 from datetime import datetime
+from pathlib import Path
 from tkinter import filedialog
 import customtkinter as ctk
 from tkinterdnd2 import DND_FILES, TkinterDnD
@@ -310,7 +311,31 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             command=self._on_keep_filename_change,
         )
         self._keep_filename_cb.grid(row=8, column=0, columnspan=2, sticky="w",
-                                    padx=12, pady=(0, 10))
+                                    padx=12, pady=(0, 4))
+
+        # 格式篩選
+        ctk.CTkLabel(
+            opt_frame, text="壓縮格式",
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            text_color=("gray30", "#888888"),
+        ).grid(row=9, column=0, columnspan=2, sticky="w", padx=12, pady=(4, 2))
+
+        fmt_row = ctk.CTkFrame(opt_frame, fg_color="transparent")
+        fmt_row.grid(row=10, column=0, columnspan=2, sticky="w", padx=12, pady=(0, 10))
+
+        _cb_kw = dict(
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            border_color=("gray55", "#2E2E2E"),
+            fg_color=("gray30", "#00D1FF"),
+            hover_color=("gray40", "#008FAD"),
+            checkmark_color=("white", "#001A22"),
+        )
+        self._fmt_pdf_var = tk.BooleanVar(value=True)
+        self._fmt_jpg_var = tk.BooleanVar(value=True)
+        self._fmt_pptx_var = tk.BooleanVar(value=True)
+        ctk.CTkCheckBox(fmt_row, text="PDF",  variable=self._fmt_pdf_var,  command=self._refresh_list_dim, **_cb_kw).grid(row=0, column=0, padx=(0, 16))
+        ctk.CTkCheckBox(fmt_row, text="JPG",  variable=self._fmt_jpg_var,  command=self._refresh_list_dim, **_cb_kw).grid(row=0, column=1, padx=(0, 16))
+        ctk.CTkCheckBox(fmt_row, text="PPTX", variable=self._fmt_pptx_var, command=self._refresh_list_dim, **_cb_kw).grid(row=0, column=2)
 
         self._on_mode_change()
 
@@ -408,7 +433,14 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             font=ctk.CTkFont(family="Segoe UI", size=11),
             text_color=("gray50", "#555555"),
         )
-        self._progress_label.grid(row=2, column=0, columnspan=2, sticky="w", pady=(2, 0))
+        self._progress_label.grid(row=2, column=0, sticky="w", pady=(2, 0))
+
+        self._progress_pct_label = ctk.CTkLabel(
+            row, text="",
+            font=ctk.CTkFont(family="Segoe UI", size=11),
+            text_color=("gray50", "#00A8CC"),
+        )
+        self._progress_pct_label.grid(row=2, column=1, sticky="e", pady=(2, 0))
 
     def _build_results(self, parent):
         frame = ctk.CTkFrame(parent, fg_color="transparent")
@@ -466,6 +498,9 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         self._quality_label.configure(text=str(s["quality"]))
         self._preserve_dates_var.set(s["preserve_dates"])
         self._keep_filename_var.set(s["keep_filename"])
+        self._fmt_pdf_var.set(s["fmt_pdf"])
+        self._fmt_jpg_var.set(s["fmt_jpg"])
+        self._fmt_pptx_var.set(s["fmt_pptx"])
         if s["output_dir"]:
             self._output_dir_var.set(s["output_dir"])
         theme = s.get("theme", "System")
@@ -484,6 +519,9 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             "keep_filename": self._keep_filename_var.get(),
             "output_dir": self._output_dir_var.get(),
             "theme": ctk.get_appearance_mode(),
+            "fmt_pdf": self._fmt_pdf_var.get(),
+            "fmt_jpg": self._fmt_jpg_var.get(),
+            "fmt_pptx": self._fmt_pptx_var.get(),
         })
 
     def _on_close(self):
@@ -591,6 +629,20 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         else:
             self._file_count_label.configure(text=f"已選檔案  共 {n} 個")
             self._list_scroll._scrollbar.grid()
+        self._refresh_list_dim()
+
+    def _refresh_list_dim(self):
+        allowed = set()
+        if self._fmt_pdf_var.get():
+            allowed.add(".pdf")
+        if self._fmt_jpg_var.get():
+            allowed.update({".jpg", ".jpeg"})
+        if self._fmt_pptx_var.get():
+            allowed.add(".pptx")
+        all_checked = len(allowed) == 4  # pdf + jpg + jpeg + pptx
+        for path, item in self._file_items.items():
+            dimmed = not all_checked and Path(path).suffix.lower() not in allowed
+            item.set_dimmed(dimmed)
 
     # ── 非同步批次載入（避免網路磁碟 stat 阻塞 GUI）───────────────────
 
@@ -776,6 +828,20 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             self._append_result("⚠️  請先選擇至少一個檔案。\n")
             return
 
+        allowed_exts: set[str] = set()
+        if self._fmt_pdf_var.get():
+            allowed_exts.add(".pdf")
+        if self._fmt_jpg_var.get():
+            allowed_exts.update({".jpg", ".jpeg"})
+        if self._fmt_pptx_var.get():
+            allowed_exts.add(".pptx")
+
+        active_paths = [p for p in self._file_paths
+                        if Path(p).suffix.lower() in allowed_exts]
+        if not active_paths:
+            self._append_result("⚠️  沒有符合已勾選格式的檔案，請至少勾選一種格式。\n")
+            return
+
         output_dir = self._output_dir_var.get()
         if output_dir in ("（與原始檔案相同目錄）", "（自動建立 compressed/ 子資料夾）"):
             output_dir = ""
@@ -809,10 +875,11 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             text_color=("white", "#FF8899"),
         )
         self._progress_bar.set(0)
+        self._progress_pct_label.configure(text="")
         self._clear_results()
 
         compress_batch(
-            file_paths=list(self._file_paths),
+            file_paths=active_paths,
             opts=opts,
             on_progress=self._on_file_done,
             on_done=self._on_batch_done,
@@ -823,8 +890,10 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         self.after(0, self._update_progress, done, total, result)
 
     def _update_progress(self, done: int, total: int, result: CompressResult):
-        self._progress_bar.set(done / total)
+        pct = done / total
+        self._progress_bar.set(pct)
         self._progress_label.configure(text=f"{done} / {total} 個檔案")
+        self._progress_pct_label.configure(text=f"{pct:.0%}")
 
         name = os.path.basename(result.input_path)
         if result.success:

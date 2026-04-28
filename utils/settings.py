@@ -14,6 +14,9 @@ _DEFAULTS: dict = {
     "keep_filename": False,
     "output_dir": "",
     "theme": "System",
+    "fmt_pdf": True,
+    "fmt_jpg": True,
+    "fmt_pptx": True,
 }
 
 

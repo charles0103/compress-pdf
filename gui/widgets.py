@@ -200,6 +200,14 @@ class FileListItem(ctk.CTkFrame):
         )
         self.btn_remove.pack(side="right", padx=4, pady=4)
 
+    def set_dimmed(self, dimmed: bool) -> None:
+        if dimmed:
+            self.configure(fg_color=("gray82", "#161616"), border_color=("gray75", "#222222"))
+            self.label.configure(text_color=("gray55", "#444444"))
+        else:
+            self.configure(fg_color=("gray88", _CARD), border_color=("gray75", _BORDER_IDLE))
+            self.label.configure(text_color=("gray20", "#BBBBBB"))
+
 
 class DropZone(ctk.CTkButton):
     """拖放 / 點擊選檔區域，拖入時顯示青色掃描閃爍動畫。
