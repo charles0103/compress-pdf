@@ -1,5 +1,15 @@
 # Changelog
 
+### ✨ 2026-04-28 - 檔名樣板 UI 簡化 + 停止壓縮真正中斷 + 輸出資料夾邏輯修正
+**影響範圍**: `gui/main_window.py`、`core/compressor.py`、`utils/file_utils.py`
+**解決**:
+- 檔名樣板輸入區新增三顆插入按鈕（`+ 原檔名` / `+ 日期` / `+ 序號`），點擊在游標位置插入對應佔位符；下方加上即時預覽列
+- 並行壓縮停止邏輯：取消後立即 `executor.shutdown(wait=False, cancel_futures=True)` 並 `break`，不再等所有執行中的子程序跑完；新增 `CancelledError` 處理
+- `default_output_path` 拆解為「決定檔名」與「決定資料夾」兩步：`keep_filename=True` 或產生的檔名與原檔名相同 → 走 `compressed/` 子資料夾；避免 template 凌駕 keep_filename 的子資料夾承諾、避免覆蓋原檔
+- 「清除」按鈕改為依 `keep_filename` checkbox 狀態顯示對應 placeholder
+- 視窗 geometry 740→770、minsize 720→750，補上預覽列佔用空間
+**成果**: ✅ 樣板輸入零學習成本、停止壓縮真的會停、輸出位置與 UI 文字一致
+
 ### 🐛 2026-04-28 - 修正底部進度文字被裁切
 **影響範圍**: `gui/main_window.py`
 **解決**: 預設視窗高度 720→740、最小高度 680→720，確保壓縮完成後進度標籤不被裁切

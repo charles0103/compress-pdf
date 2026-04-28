@@ -41,13 +41,17 @@ def default_output_path(
                     .replace("{date}", today)
                     .replace("{index}", str(file_index)))
         out_name = out_base + ext
-        folder = output_dir if output_dir else src_dir
     elif keep_filename:
         out_name = filename
-        folder = output_dir if output_dir else os.path.join(src_dir, "compressed")
     else:
         out_name = f"{base}_compressed{ext}"
-        folder = output_dir if output_dir else src_dir
+
+    if output_dir:
+        folder = output_dir
+    elif keep_filename or out_name == filename:
+        folder = os.path.join(src_dir, "compressed")
+    else:
+        folder = src_dir
 
     os.makedirs(folder, exist_ok=True)
     return os.path.join(folder, out_name)

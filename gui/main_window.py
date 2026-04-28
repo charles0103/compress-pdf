@@ -33,8 +33,8 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         self.TkdndVersion = TkinterDnD._require(self)
 
         self.title("PDF 壓縮工具")
-        self.geometry("1100x740")
-        self.minsize(960, 720)
+        self.geometry("1100x770")
+        self.minsize(960, 750)
         self.resizable(True, True)
 
         ctk.set_appearance_mode("System")
@@ -403,7 +403,7 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             border_width=1,
             border_color=("gray70", "#2E2E2E"),
             text_color=("gray30", "#666666"),
-            command=lambda: self._output_dir_var.set("（與原始檔案相同目錄）"),
+            command=self._clear_output_dir,
         ).grid(row=0, column=2, padx=(4, 0))
 
         hint_row = ctk.CTkFrame(row_frame, fg_color="transparent")
@@ -415,15 +415,25 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             font=ctk.CTkFont(family="Segoe UI", size=12),
             text_color=("gray30", "#888888"),
         ).grid(row=0, column=0, sticky="w")
-        ctk.CTkLabel(
-            hint_row,
-            text="{name} 原檔名  {date} 日期  {index} 序號",
-            font=ctk.CTkFont(family="Segoe UI", size=10),
-            text_color=("gray55", "#444444"),
-        ).grid(row=0, column=1, sticky="e")
+
+        chips = ctk.CTkFrame(hint_row, fg_color="transparent")
+        chips.grid(row=0, column=1, sticky="e")
+        _chip_kw = dict(
+            width=68, height=22,
+            font=ctk.CTkFont(family="Segoe UI", size=11),
+            fg_color=("gray85", "#0D1F26"),
+            hover_color=("gray75", "#163040"),
+            border_width=1,
+            border_color=("gray60", "#00D1FF"),
+            text_color=("gray10", "#00D1FF"),
+            corner_radius=4,
+        )
+        ctk.CTkButton(chips, text="+ 原檔名", command=lambda: self._insert_template_token("{name}"),  **_chip_kw).grid(row=0, column=0, padx=(0, 4))
+        ctk.CTkButton(chips, text="+ 日期",   command=lambda: self._insert_template_token("{date}"),  **_chip_kw).grid(row=0, column=1, padx=(0, 4))
+        ctk.CTkButton(chips, text="+ 序號",   command=lambda: self._insert_template_token("{index}"), **_chip_kw).grid(row=0, column=2)
 
         self._filename_template_var = tk.StringVar(value="")
-        ctk.CTkEntry(
+        self._filename_entry = ctk.CTkEntry(
             row_frame,
             textvariable=self._filename_template_var,
             placeholder_text="空白 = {name}_compressed（預設）",
@@ -431,7 +441,17 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             fg_color=("gray90", "#1A1A1A"),
             border_color=("gray70", "#2E2E2E"),
             text_color=("gray10", "#CCCCCC"),
-        ).grid(row=3, column=0, sticky="ew", pady=(2, 0))
+        )
+        self._filename_entry.grid(row=3, column=0, sticky="ew", pady=(2, 0))
+
+        self._filename_preview_label = ctk.CTkLabel(
+            row_frame, text="",
+            font=ctk.CTkFont(family="Segoe UI", size=10),
+            text_color=("gray45", "#666666"),
+        )
+        self._filename_preview_label.grid(row=4, column=0, sticky="w", pady=(2, 0))
+        self._filename_template_var.trace_add("write", lambda *_: self._update_filename_preview())
+        self._update_filename_preview()
 
     def _build_action_row(self, parent, row: int):
         row_frame = ctk.CTkFrame(parent, fg_color="transparent")
@@ -630,6 +650,38 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         folder = filedialog.askdirectory(title="選擇輸出資料夾")
         if folder:
             self._output_dir_var.set(folder)
+
+    def _clear_output_dir(self):
+        if self._keep_filename_var.get():
+            self._output_dir_var.set("（自動建立 compressed/ 子資料夾）")
+        else:
+            self._output_dir_var.set("（與原始檔案相同目錄）")
+
+    def _insert_template_token(self, token: str):
+        entry = self._filename_entry
+        inner = getattr(entry, "_entry", None)
+        entry.focus_set()
+        try:
+            pos = entry.index("insert")
+        except Exception:
+            pos = len(self._filename_template_var.get())
+        entry.insert(pos, token)
+        if inner is not None:
+            try:
+                inner.icursor(pos + len(token))
+            except Exception:
+                pass
+
+    def _update_filename_preview(self):
+        from datetime import date
+        tpl = self._filename_template_var.get().strip()
+        if not tpl:
+            self._filename_preview_label.configure(text="預覽：report_compressed.pdf")
+            return
+        sample = (tpl.replace("{name}", "report")
+                     .replace("{date}", date.today().strftime("%Y%m%d"))
+                     .replace("{index}", "1"))
+        self._filename_preview_label.configure(text=f"預覽：{sample}.pdf")
 
     def _on_drop(self, event):
         raw = event.data or ""

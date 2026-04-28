@@ -1,4 +1,5 @@
 import dataclasses
+import concurrent.futures
 import os
 import tempfile
 import threading
@@ -192,7 +193,9 @@ def compress_batch(
         else:
             lock = threading.Lock()
             done_count = [0]
-            with ProcessPoolExecutor(max_workers=workers) as executor:
+            cancelled = False
+            executor = ProcessPoolExecutor(max_workers=workers)
+            try:
                 futures = {
                     executor.submit(_compress_process_worker, (i, path, opts)): i
                     for i, path in enumerate(file_paths)
@@ -200,6 +203,11 @@ def compress_batch(
                 for future in as_completed(futures):
                     try:
                         idx, result = future.result()
+                    except concurrent.futures.CancelledError:
+                        i = futures[future]
+                        result = CompressResult(file_paths[i], "", 0, 0, False, "已取消")
+                        result.elapsed = 0.0
+                        idx = i
                     except Exception as exc:
                         i = futures[future]
                         result = CompressResult(
@@ -211,9 +219,15 @@ def compress_batch(
                         done_count[0] += 1
                         current = done_count[0]
                     on_progress(current, total, result)
-                    if should_cancel and should_cancel():
+                    if not cancelled and should_cancel and should_cancel():
+                        cancelled = True
                         for f in futures:
                             f.cancel()
+                        executor.shutdown(wait=False, cancel_futures=True)
+                        break
+            finally:
+                if not cancelled:
+                    executor.shutdown(wait=True)
 
         ordered = [results_map[i] for i in sorted(results_map)]
         on_done(ordered)
