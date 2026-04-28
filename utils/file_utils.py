@@ -24,16 +24,26 @@ def default_output_path(
     input_path: str,
     output_dir: str | None = None,
     keep_filename: bool = False,
+    filename_template: str = "",
+    file_index: int = 1,
 ) -> str:
+    from datetime import date
+
     src_dir = os.path.dirname(input_path)
     filename = os.path.basename(input_path)
     base = os.path.splitext(filename)[0]
-
     ext = os.path.splitext(filename)[1]
 
-    if keep_filename:
+    if filename_template:
+        today = date.today().strftime("%Y%m%d")
+        out_base = (filename_template
+                    .replace("{name}", base)
+                    .replace("{date}", today)
+                    .replace("{index}", str(file_index)))
+        out_name = out_base + ext
+        folder = output_dir if output_dir else src_dir
+    elif keep_filename:
         out_name = filename
-        # 未指定輸出目錄 → 自動建立 compressed/ 子資料夾
         folder = output_dir if output_dir else os.path.join(src_dir, "compressed")
     else:
         out_name = f"{base}_compressed{ext}"

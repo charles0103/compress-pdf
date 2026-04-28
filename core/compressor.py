@@ -1,7 +1,9 @@
+import dataclasses
 import os
 import tempfile
 import threading
 import time
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -25,6 +27,8 @@ class CompressOptions:
     output_dir: str = ""         # 空字串代表與輸入同目錄
     preserve_dates: bool = True  # 保留原始檔案建立/修改日期
     keep_filename: bool = False  # 保留原始檔名（輸出至 compressed/ 子資料夾）
+    filename_template: str = ""  # 輸出檔名樣板，支援 {name} {date} {index}；空字串使用預設規則
+    file_index: int = 1          # 樣板中 {index} 的值，由 compress_batch 自動設定  # 保留原始檔名（輸出至 compressed/ 子資料夾）
 
 
 @dataclass
@@ -50,6 +54,8 @@ def compress_file(
             input_path,
             opts.output_dir or None,
             keep_filename=opts.keep_filename,
+            filename_template=opts.filename_template,
+            file_index=opts.file_index,
         )
     except PermissionError as exc:
         return CompressResult(input_path, "", size_before, 0, False, f"存取被拒：{exc}")
@@ -130,35 +136,87 @@ def analyze_file(input_path: str) -> PdfAnalysisResult | None:
         return None
 
 
+def _compress_process_worker(args: tuple) -> tuple[int, CompressResult]:
+    """ProcessPoolExecutor 工作函數（必須在模組頂層以供 pickle 序列化）"""
+    idx, path, opts = args
+    file_opts = dataclasses.replace(opts, file_index=idx + 1)
+    t0 = time.perf_counter()
+    try:
+        result = compress_file(path, file_opts)
+    except Exception as exc:
+        result = CompressResult(path, "", 0, 0, False, f"未預期錯誤：{exc}")
+    result.elapsed = time.perf_counter() - t0
+    return idx, result
+
+
 def compress_batch(
     file_paths: list[str],
     opts: CompressOptions,
     on_progress: Callable[[int, int, CompressResult], None],
     on_done: Callable[[list[CompressResult]], None],
     should_cancel: Callable[[], bool] | None = None,
+    max_workers: int = 1,
 ) -> threading.Thread:
     """在背景執行緒批次壓縮，每完成一個檔案呼叫 on_progress，全部完成後呼叫 on_done。
 
-    若提供 should_cancel，會在每個檔案開始前檢查；回傳 True 則停止後續檔案，
-    已完成的結果仍會傳給 on_done。
+    max_workers > 1 時使用 ThreadPoolExecutor 並行壓縮。
+    should_cancel 回傳 True 時：尚未開始的任務跳過，已在執行的任務完成後停止。
     """
 
+    def _run_one(idx: int, path: str) -> tuple[int, CompressResult]:
+        if should_cancel and should_cancel():
+            r = CompressResult(path, "", 0, 0, False, "已取消")
+            r.elapsed = 0.0
+            return idx, r
+        file_opts = dataclasses.replace(opts, file_index=idx + 1)
+        t0 = time.perf_counter()
+        try:
+            result = compress_file(path, file_opts)
+        except Exception as exc:
+            result = CompressResult(path, "", 0, 0, False, f"未預期錯誤：{exc}")
+        result.elapsed = time.perf_counter() - t0
+        return idx, result
+
     def run():
-        results = []
         total = len(file_paths)
-        for i, path in enumerate(file_paths):
-            if should_cancel and should_cancel():
-                break
-            t0 = time.perf_counter()
-            try:
-                result = compress_file(path, opts)
-            except Exception as exc:
-                # compress_file 自身應該已捕捉所有例外，這裡是最後一道防線
-                result = CompressResult(path, "", 0, 0, False, f"未預期錯誤：{exc}")
-            result.elapsed = time.perf_counter() - t0
-            results.append(result)
-            on_progress(i + 1, total, result)
-        on_done(results)
+        results_map: dict[int, CompressResult] = {}
+
+        workers = max(1, max_workers)
+        if workers == 1:
+            for i, path in enumerate(file_paths):
+                if should_cancel and should_cancel():
+                    break
+                _, result = _run_one(i, path)
+                results_map[i] = result
+                on_progress(len(results_map), total, result)
+        else:
+            lock = threading.Lock()
+            done_count = [0]
+            with ProcessPoolExecutor(max_workers=workers) as executor:
+                futures = {
+                    executor.submit(_compress_process_worker, (i, path, opts)): i
+                    for i, path in enumerate(file_paths)
+                }
+                for future in as_completed(futures):
+                    try:
+                        idx, result = future.result()
+                    except Exception as exc:
+                        i = futures[future]
+                        result = CompressResult(
+                            file_paths[i], "", 0, 0, False, f"未預期錯誤：{exc}"
+                        )
+                        idx = i
+                    results_map[idx] = result
+                    with lock:
+                        done_count[0] += 1
+                        current = done_count[0]
+                    on_progress(current, total, result)
+                    if should_cancel and should_cancel():
+                        for f in futures:
+                            f.cancel()
+
+        ordered = [results_map[i] for i in sorted(results_map)]
+        on_done(ordered)
 
     t = threading.Thread(target=run, daemon=True)
     t.start()

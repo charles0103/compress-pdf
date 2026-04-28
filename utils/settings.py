@@ -17,6 +17,8 @@ _DEFAULTS: dict = {
     "fmt_pdf": True,
     "fmt_jpg": True,
     "fmt_pptx": True,
+    "filename_template": "",
+    "max_workers": "1（順序）",
 }
 
 

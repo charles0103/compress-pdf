@@ -1,5 +1,6 @@
 import os
 import threading
+import time
 import tkinter as tk
 from datetime import datetime
 from pathlib import Path
@@ -33,7 +34,7 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
 
         self.title("PDF 壓縮工具")
         self.geometry("1100x720")
-        self.minsize(960, 600)
+        self.minsize(960, 680)
         self.resizable(True, True)
 
         ctk.set_appearance_mode("System")
@@ -135,7 +136,7 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
 
     def _build_drop_zone(self, parent, row: int):
         self._drop_zone = DropZone(parent, on_click=self._browse_files)
-        self._drop_zone.grid(row=row, column=0, sticky="ew", padx=(0, 8), pady=(0, 8))
+        self._drop_zone.grid(row=row, column=0, sticky="ew", padx=(0, 8), pady=(0, 4))
 
     def _build_file_list(self, parent):
         self._file_list_frame = ctk.CTkFrame(parent, fg_color="transparent")
@@ -183,7 +184,7 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             border_color=("gray75", "#2E2E2E"),
             corner_radius=10,
         )
-        opt_frame.grid(row=row, column=0, sticky="ew", padx=(0, 8), pady=(2, 0))
+        opt_frame.grid(row=row, column=0, sticky="ew", pady=(2, 0))
         opt_frame.grid_columnconfigure((0, 1), weight=1)
 
         # 壓縮模式
@@ -191,7 +192,7 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             opt_frame, text="壓縮模式",
             font=ctk.CTkFont(family="Segoe UI", size=12),
             text_color=("gray30", "#888888"),
-        ).grid(row=0, column=0, columnspan=2, sticky="w", padx=12, pady=(10, 4))
+        ).grid(row=0, column=0, columnspan=2, sticky="w", padx=12, pady=(6, 2))
         self._mode_var = tk.IntVar(value=1)
         _mode_labels = ["無失真", "圖片優化", "高壓縮"]
         self._mode_seg = ctk.CTkSegmentedButton(
@@ -208,14 +209,14 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         )
         self._mode_seg.set(_mode_labels[0])
         self._mode_seg.grid(row=1, column=0, columnspan=2, sticky="ew",
-                            padx=12, pady=(0, 8))
+                            padx=12, pady=(0, 2))
 
         # 壓縮等級（pikepdf 9+ 已自動最佳化，此 slider 僅保留 UI 一致性）
         ctk.CTkLabel(
             opt_frame, text="壓縮等級（自動）",
             font=ctk.CTkFont(family="Segoe UI", size=12),
             text_color=("gray30", "#888888"),
-        ).grid(row=2, column=0, sticky="w", padx=12, pady=(6, 0))
+        ).grid(row=2, column=0, sticky="w", padx=12, pady=(3, 0))
         self._level_label = ctk.CTkLabel(
             opt_frame, text="9",
             font=ctk.CTkFont(family="Segoe UI", size=12),
@@ -233,14 +234,14 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         )
         self._level_slider.set(9)
         self._level_slider.grid(row=3, column=0, columnspan=2, sticky="ew",
-                                padx=12, pady=(2, 8))
+                                padx=12, pady=(1, 4))
 
         # 圖片解析度（僅對超過目標 DPI 的圖片降採樣，不會升採樣）
         ctk.CTkLabel(
             opt_frame, text="圖片解析度（降採樣上限）",
             font=ctk.CTkFont(family="Segoe UI", size=12),
             text_color=("gray30", "#888888"),
-        ).grid(row=4, column=0, sticky="w", padx=12, pady=(4, 0))
+        ).grid(row=4, column=0, sticky="w", padx=12, pady=(2, 0))
         self._dpi_menu = ctk.CTkOptionMenu(
             opt_frame, values=DPI_OPTIONS, width=160,
             font=ctk.CTkFont(family="Segoe UI", size=12),
@@ -254,14 +255,14 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             command=lambda _: None,
         )
         self._dpi_menu.set("150 DPI（一般文件）")
-        self._dpi_menu.grid(row=4, column=1, sticky="e", padx=12, pady=(4, 0))
+        self._dpi_menu.grid(row=4, column=1, sticky="e", padx=12, pady=(2, 0))
 
         # 圖片品質（越低壓縮率越高）
         ctk.CTkLabel(
             opt_frame, text="圖片品質（越低檔案越小）",
             font=ctk.CTkFont(family="Segoe UI", size=12),
             text_color=("gray30", "#888888"),
-        ).grid(row=5, column=0, sticky="w", padx=12, pady=(8, 0))
+        ).grid(row=5, column=0, sticky="w", padx=12, pady=(4, 0))
         self._quality_label = ctk.CTkLabel(
             opt_frame, text="75",
             font=ctk.CTkFont(family="Segoe UI", size=12),
@@ -278,7 +279,7 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         )
         self._quality_slider.set(75)
         self._quality_slider.grid(row=6, column=0, columnspan=2, sticky="ew",
-                                  padx=12, pady=(2, 10))
+                                  padx=12, pady=(1, 5))
 
         # 保留原始日期
         self._preserve_dates_var = tk.BooleanVar(value=True)
@@ -291,7 +292,7 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             fg_color=("gray30", "#00D1FF"),
             hover_color=("gray40", "#008FAD"),
             checkmark_color=("white", "#001A22"),
-        ).grid(row=7, column=0, columnspan=2, sticky="w", padx=12, pady=(0, 4))
+        ).grid(row=7, column=0, columnspan=2, sticky="w", padx=12, pady=(0, 2))
 
         # 保留原始檔名
         self._keep_filename_var = tk.BooleanVar(value=False)
@@ -307,17 +308,39 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             command=self._on_keep_filename_change,
         )
         self._keep_filename_cb.grid(row=8, column=0, columnspan=2, sticky="w",
-                                    padx=12, pady=(0, 4))
+                                    padx=12, pady=(0, 2))
+
+        # 並行壓縮執行緒
+        ctk.CTkLabel(
+            opt_frame, text="並行壓縮執行緒",
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            text_color=("gray30", "#888888"),
+        ).grid(row=9, column=0, columnspan=2, sticky="w", padx=12, pady=(3, 1))
+        _worker_opts = ["1（順序）", "2", "4", "自動"]
+        self._workers_seg = ctk.CTkSegmentedButton(
+            opt_frame,
+            values=_worker_opts,
+            selected_color=("gray30", "#00A8CC"),
+            selected_hover_color=("gray20", "#008FAD"),
+            unselected_color=("gray80", "#1A1A1A"),
+            unselected_hover_color=("gray70", "#1A3040"),
+            text_color=("gray10", "#FFFFFF"),
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            command=lambda _: None,
+        )
+        self._workers_seg.set("1（順序）")
+        self._workers_seg.grid(row=10, column=0, columnspan=2, sticky="ew",
+                               padx=12, pady=(0, 2))
 
         # 格式篩選
         ctk.CTkLabel(
             opt_frame, text="壓縮格式",
             font=ctk.CTkFont(family="Segoe UI", size=12),
             text_color=("gray30", "#888888"),
-        ).grid(row=9, column=0, columnspan=2, sticky="w", padx=12, pady=(4, 2))
+        ).grid(row=11, column=0, columnspan=2, sticky="w", padx=12, pady=(2, 1))
 
         fmt_row = ctk.CTkFrame(opt_frame, fg_color="transparent")
-        fmt_row.grid(row=10, column=0, columnspan=2, sticky="w", padx=12, pady=(0, 10))
+        fmt_row.grid(row=12, column=0, columnspan=2, sticky="w", padx=12, pady=(0, 6))
 
         _cb_kw = dict(
             font=ctk.CTkFont(family="Segoe UI", size=12),
@@ -337,7 +360,7 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
 
     def _build_output_row(self, parent, row: int):
         row_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        row_frame.grid(row=row, column=0, sticky="ew", padx=(0, 8), pady=(8, 0))
+        row_frame.grid(row=row, column=0, sticky="ew", padx=(0, 8), pady=(5, 0))
         row_frame.grid_columnconfigure(0, weight=1)
         row = row_frame  # 保留原本變數名以最少化下方修改
 
@@ -383,9 +406,36 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             command=lambda: self._output_dir_var.set("（與原始檔案相同目錄）"),
         ).grid(row=0, column=2, padx=(4, 0))
 
+        hint_row = ctk.CTkFrame(row_frame, fg_color="transparent")
+        hint_row.grid(row=2, column=0, sticky="ew", pady=(8, 0))
+        hint_row.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            hint_row, text="輸出檔名樣板",
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            text_color=("gray30", "#888888"),
+        ).grid(row=0, column=0, sticky="w")
+        ctk.CTkLabel(
+            hint_row,
+            text="{name} 原檔名  {date} 日期  {index} 序號",
+            font=ctk.CTkFont(family="Segoe UI", size=10),
+            text_color=("gray55", "#444444"),
+        ).grid(row=0, column=1, sticky="e")
+
+        self._filename_template_var = tk.StringVar(value="")
+        ctk.CTkEntry(
+            row_frame,
+            textvariable=self._filename_template_var,
+            placeholder_text="空白 = {name}_compressed（預設）",
+            font=ctk.CTkFont(family="Segoe UI", size=11),
+            fg_color=("gray90", "#1A1A1A"),
+            border_color=("gray70", "#2E2E2E"),
+            text_color=("gray10", "#CCCCCC"),
+        ).grid(row=3, column=0, sticky="ew", pady=(2, 0))
+
     def _build_action_row(self, parent, row: int):
         row_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        row_frame.grid(row=row, column=0, sticky="ew", padx=(0, 8), pady=(12, 0))
+        row_frame.grid(row=row, column=0, sticky="ew", padx=(0, 8), pady=(6, 0))
         row_frame.grid_columnconfigure(0, weight=1)
         row_frame.grid_columnconfigure(1, weight=0)
         row = row_frame
@@ -429,14 +479,14 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             font=ctk.CTkFont(family="Segoe UI", size=11),
             text_color=("gray50", "#555555"),
         )
-        self._progress_label.grid(row=2, column=0, sticky="w", pady=(2, 0))
+        self._progress_label.grid(row=2, column=0, sticky="w", pady=(2, 6))
 
         self._progress_pct_label = ctk.CTkLabel(
             row, text="",
             font=ctk.CTkFont(family="Segoe UI", size=11),
             text_color=("gray50", "#00A8CC"),
         )
-        self._progress_pct_label.grid(row=2, column=1, sticky="e", pady=(2, 0))
+        self._progress_pct_label.grid(row=2, column=1, sticky="e", pady=(2, 6))
 
     def _build_results(self, parent):
         frame = ctk.CTkFrame(parent, fg_color="transparent")
@@ -497,6 +547,8 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         self._fmt_pdf_var.set(s["fmt_pdf"])
         self._fmt_jpg_var.set(s["fmt_jpg"])
         self._fmt_pptx_var.set(s["fmt_pptx"])
+        self._filename_template_var.set(s.get("filename_template", ""))
+        self._workers_seg.set(s.get("max_workers", "1（順序）"))
         if s["output_dir"]:
             self._output_dir_var.set(s["output_dir"])
         theme = s.get("theme", "System")
@@ -518,6 +570,8 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             "fmt_pdf": self._fmt_pdf_var.get(),
             "fmt_jpg": self._fmt_jpg_var.get(),
             "fmt_pptx": self._fmt_pptx_var.get(),
+            "filename_template": self._filename_template_var.get().strip(),
+            "max_workers": self._workers_seg.get(),
         })
 
     def _on_close(self):
@@ -888,6 +942,10 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         if output_dir in ("（與原始檔案相同目錄）", "（自動建立 compressed/ 子資料夾）"):
             output_dir = ""
 
+        _workers_map = {"1（順序）": 1, "2": 2, "4": 4,
+                        "自動": os.cpu_count() or 4}
+        max_workers = _workers_map.get(self._workers_seg.get(), 1)
+
         opts = CompressOptions(
             mode=self._mode_var.get(),
             level=int(round(self._level_slider.get())),
@@ -896,11 +954,14 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             output_dir=output_dir,
             preserve_dates=self._preserve_dates_var.get(),
             keep_filename=self._keep_filename_var.get(),
+            filename_template=self._filename_template_var.get().strip(),
         )
 
         self._last_opts = opts
         self._last_results = []
+        self._last_wall_elapsed = 0.0
         self._compress_start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self._batch_start_ts = time.perf_counter()
         self._btn_export.configure(state="disabled",
                                    text_color=("gray30", "#888888"),
                                    border_color=("gray70", "#2E2E2E"))
@@ -926,6 +987,7 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             on_progress=self._on_file_done,
             on_done=self._on_batch_done,
             should_cancel=lambda: self._cancel_requested,
+            max_workers=max_workers,
         )
 
     def _on_file_done(self, done: int, total: int, result: CompressResult):
@@ -971,15 +1033,34 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         )
         ok = sum(1 for r in results if r.success)
         total_planned = len(self._file_paths)
+        wall_elapsed = time.perf_counter() - getattr(self, "_batch_start_ts", 0)
+        self._last_wall_elapsed = wall_elapsed
+        cpu_elapsed = sum(r.elapsed for r in results)
+        total_saved = sum(
+            r.size_before - r.size_after
+            for r in results if r.success and r.size_after > 0
+        )
+        saved_str = f"  節省 {format_size(total_saved)}" if total_saved > 0 else ""
+        parallel = cpu_elapsed > wall_elapsed * 1.2  # 並行時 CPU 總和遠大於壁鐘時間
+        time_str = (f"實際耗時 {wall_elapsed:.1f}s  CPU {cpu_elapsed:.1f}s"
+                    if parallel else f"耗時 {wall_elapsed:.1f}s")
+
         if cancelled:
             self._progress_label.configure(
                 text=f"已停止：完成 {ok}/{len(results)} 個（共 {total_planned} 個）"
             )
             self._append_result(
-                f"\n⏹  批次已停止，共處理 {len(results)} / {total_planned} 個檔案。\n"
+                f"\n{'─' * 30}\n"
+                f"⏹  已停止  {ok}/{len(results)} 個成功"
+                f"  {time_str}{saved_str}\n"
             )
         else:
             self._progress_label.configure(text=f"完成：{ok}/{len(results)} 個成功")
+            self._append_result(
+                f"\n{'─' * 30}\n"
+                f"✔  完成 {ok}/{len(results)} 個成功"
+                f"  {time_str}{saved_str}\n"
+            )
         self._btn_export.configure(
             state="normal",
             text_color=("gray10", "#00D1FF"),
@@ -1026,12 +1107,15 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
 
         ok = sum(1 for r in self._last_results if r.success)
         total = len(self._last_results)
-        total_elapsed = sum(r.elapsed for r in self._last_results)
+        cpu_elapsed = sum(r.elapsed for r in self._last_results)
+        wall_elapsed = getattr(self, "_last_wall_elapsed", 0.0)
         lines += ["", "[統計摘要]", f"成功：{ok} / {total}"]
         if total_saved > 0:
             avg_ratio = sum(ratios) / len(ratios) if ratios else 0
             lines.append(f"總計節省：{format_size(total_saved)}（平均 -{avg_ratio:.0f}%）")
-        lines.append(f"總壓縮時間：{total_elapsed:.1f}s")
+        lines.append(f"實際耗時：{wall_elapsed:.1f}s")
+        if cpu_elapsed > wall_elapsed * 1.2:
+            lines.append(f"CPU 總時間：{cpu_elapsed:.1f}s（並行壓縮）")
 
         return "\n".join(lines) + "\n"
 
