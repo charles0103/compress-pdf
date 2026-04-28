@@ -43,6 +43,7 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         self._file_items: dict[str, FileListItem] = {}
         self._is_running = False
         self._cancel_requested = False
+        self._load_cancelled = False
         self._last_results: list = []
         self._last_opts = None
         self._compress_start_time: str = ""
@@ -165,7 +166,7 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             text_color=("gray30", "#888888"),
             border_width=1,
             border_color=("gray70", "#2E2E2E"),
-            command=self._clear_files,
+            command=self._clear_or_cancel_load,
         )
         self._btn_clear_all.grid(row=0, column=1, sticky="e")
 
@@ -684,13 +685,25 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         if total == 0 and not unknown:
             return
 
+        self._load_cancelled = False
         if total > 0:
             self._set_loading_status(f"載入中  0 / {total} …")
             self.update_idletasks()  # 立即重繪 label，避免被後續批次蓋過去
 
+        batch_done = threading.Event()
+        batch_done.set()  # 第一個 batch 不需等待
+
+        def submit_batch(batch, processed):
+            batch_done.clear()
+            self.after(0, self._consume_loaded_batch, batch, processed, total, batch_done)
+            # 等主執行緒處理完才繼續，避免事件佇列堆積導致按鈕點擊被卡住
+            batch_done.wait(timeout=2.0)
+
         def worker():
             has_folder = False
             for p in unknown:
+                if self._load_cancelled:
+                    break
                 try:
                     if os.path.isdir(p):
                         has_folder = True
@@ -701,6 +714,8 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             batch: list[tuple[str, int]] = []
             processed = 0
             for p in candidates:
+                if self._load_cancelled:
+                    break
                 try:
                     size = os.path.getsize(p)
                 except Exception:
@@ -708,31 +723,41 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
                 batch.append((p, size))
                 processed += 1
                 if len(batch) >= self._LOAD_BATCH_SIZE:
-                    self.after(0, self._consume_loaded_batch, batch, processed, total)
+                    submit_batch(batch, processed)
                     batch = []
-            if batch:
-                self.after(0, self._consume_loaded_batch, batch, processed, total)
+            if batch and not self._load_cancelled:
+                submit_batch(batch, processed)
 
-            self.after(0, self._finish_loading, has_folder)
+            self.after(0, self._finish_loading, has_folder, self._load_cancelled)
 
         threading.Thread(target=worker, daemon=True).start()
 
-    def _consume_loaded_batch(self, batch: list[tuple[str, int]], done: int, total: int):
-        # 先更新進度文字並強制重繪，這樣使用者才看得到「逐步遞增」效果。
-        # 否則整串 after(0, …) 回呼會連續執行，Tk 直到全部跑完才一次重繪。
-        if done < total:
-            self._set_loading_status(f"載入中  {done} / {total} …")
-        self.update_idletasks()
-        for path, size in batch:
-            self._add_file(path, size_bytes=size)
+    def _consume_loaded_batch(self, batch: list[tuple[str, int]], done: int, total: int,
+                              batch_done=None):
+        try:
+            if self._load_cancelled:
+                return
+            # 先更新進度文字並強制重繪，這樣使用者才看得到「逐步遞增」效果。
+            if done < total:
+                self._set_loading_status(f"載入中  {done} / {total} …")
+            self.update_idletasks()
+            for path, size in batch:
+                self._add_file(path, size_bytes=size)
+        finally:
+            if batch_done is not None:
+                batch_done.set()
 
-    def _finish_loading(self, has_folder: bool):
+    def _finish_loading(self, has_folder: bool, cancelled: bool = False):
         self._set_loading_status("")
+        if cancelled:
+            self._append_result("⏹  使用者取消載入。\n")
         if has_folder:
             self._append_result("⚠️  不支援拖入資料夾，請直接拖入檔案。\n")
 
     def _set_loading_status(self, text: str):
         # 顯示在 DropZone 上：青色字、清晰可見、就在使用者剛剛操作的位置
+        self._is_loading = bool(text)
+        self._set_clear_button_mode(cancel=self._is_loading)
         if text:
             self._drop_zone.show_loading(f"⏳  {text}")
         else:
@@ -753,6 +778,31 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         self._file_items.clear()
         self._file_paths.clear()
         self._update_file_count()
+
+    def _clear_or_cancel_load(self):
+        if self._loading_in_progress():
+            self._load_cancelled = True
+        else:
+            self._clear_files()
+
+    def _loading_in_progress(self) -> bool:
+        return getattr(self, "_is_loading", False)
+
+    def _set_clear_button_mode(self, cancel: bool):
+        if cancel:
+            self._btn_clear_all.configure(
+                text="取消載入",
+                text_color=("white", "#FF8899"),
+                border_color=("gray40", "#FF5577"),
+                hover_color=("gray15", "#5A1520"),
+            )
+        else:
+            self._btn_clear_all.configure(
+                text="全部清除",
+                text_color=("gray30", "#888888"),
+                border_color=("gray70", "#2E2E2E"),
+                hover_color=("gray80", "#1A2A30"),
+            )
 
     def _analyze_files(self):
         """分析選取檔案的圖片解析度（PDF 顯示詳細資訊，JPG 顯示基本資訊）"""
