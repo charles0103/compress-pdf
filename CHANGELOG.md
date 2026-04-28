@@ -1,5 +1,12 @@
 # Changelog
 
+### 🐛 2026-04-28 - 修正 SSD 載入大量檔案無法取消
+**影響範圍**: `gui/main_window.py`
+**解決**:
+- `_consume_loaded_batch` 改用 `update()` 取代 `update_idletasks()`，強制處理待處理的點擊事件（前者只跑重繪、不處理 user input）
+- batch for-loop 內加 `_load_cancelled` 檢查，cancel 中途點下立即停止建立 widget
+**成果**: ✅ 本地 SSD 載入 385 個檔案也能即時取消
+
 ### ✨ 2026-04-28 - 載入大量檔案可即時取消
 **影響範圍**: `gui/main_window.py`
 **解決**:

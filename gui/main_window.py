@@ -735,13 +735,17 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
     def _consume_loaded_batch(self, batch: list[tuple[str, int]], done: int, total: int,
                               batch_done=None):
         try:
+            # update() 而非 update_idletasks()：強制處理待處理的點擊事件，
+            # 否則在快速 SSD 上 worker 連續排批次，主執行緒一直在 widget for-loop，
+            # 取消按鈕的點擊事件被卡在佇列裡無法處理
+            self.update()
             if self._load_cancelled:
                 return
-            # 先更新進度文字並強制重繪，這樣使用者才看得到「逐步遞增」效果。
             if done < total:
                 self._set_loading_status(f"載入中  {done} / {total} …")
-            self.update_idletasks()
             for path, size in batch:
+                if self._load_cancelled:
+                    break
                 self._add_file(path, size_bytes=size)
         finally:
             if batch_done is not None:
