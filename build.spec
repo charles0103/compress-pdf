@@ -11,11 +11,21 @@ PyInstaller 規格檔：PDF 壓縮工具
 注意：
     - onedir：整個 dist/PDF壓縮工具/ 資料夾就是可攜的應用程式
     - 不使用 onefile：避免 ProcessPoolExecutor 子程序每次都要解壓 exe（極慢）
+    - contents_directory='.'：所有 DLL 放在 exe 旁，避免 _internal 路徑下 python3XX.dll 載入失敗
 """
+import sys, os
 from PyInstaller.utils.hooks import collect_all
 
 datas = [("app.ico", ".")]
+
+# python3.dll（stable ABI）需與 exe 同層，否則某些 Windows 環境 LoadLibrary 失敗
+_py_dir = sys.base_prefix
 binaries = []
+for _dll in ("python3.dll", "python313.dll"):
+    _p = os.path.join(_py_dir, _dll)
+    if os.path.exists(_p):
+        binaries.append((_p, "."))
+
 hiddenimports = []
 
 for _pkg in ("tkinterdnd2", "customtkinter", "pikepdf"):
