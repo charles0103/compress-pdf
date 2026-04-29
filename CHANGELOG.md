@@ -1,5 +1,10 @@
 # Changelog
 
+### 🐛 2026-04-29 - 修正其他電腦執行 exe 時 LoadLibrary 失敗
+**影響範圍**: `build.spec`
+**解決**: `python313.dll` 的 import table 中有 `python3.dll`（stable ABI DLL），原本打包設定未收集此檔案，導致無 Python 環境的電腦出現「Failed to load Python DLL」錯誤；在 `build.spec` 明確將 `python3.dll` 與 `python313.dll` 加入 `binaries`
+**成果**: ✅ 其他 Windows 11 電腦可正常執行打包後的 exe
+
 ### 📝 2026-04-29 - 功能說明文件更新
 **影響範圍**: `功能說明文件.md`
 **解決**: 補上拖曳資料夾說明、移除已實作的 P1-3（資料夾支援）、P2-8（檔名樣板）、P2-9（並行壓縮）、剩餘項目重新編號
