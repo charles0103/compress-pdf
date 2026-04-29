@@ -400,7 +400,7 @@ class DropZone(ctk.CTkButton):
     """
 
     _SCAN_COLORS = [_CYAN, _CYAN_MID, "#005566", _CYAN_MID]
-    _IDLE_TEXT   = "📂  將 PDF / JPG / PPTX 拖放至此，或點擊選擇檔案"
+    _IDLE_TEXT   = "📂  將 PDF / JPG / PPTX 或資料夾拖放至此，或點擊選擇檔案"
     _SCAN_TEXT   = "⬇  放開以加入檔案"
 
     def __init__(self, master, on_click, **kwargs):

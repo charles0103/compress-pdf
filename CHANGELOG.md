@@ -1,5 +1,13 @@
 # Changelog
 
+### ✨ 2026-04-29 - 拖曳資料夾支援（僅第一層）
+**影響範圍**: `gui/main_window.py`、`gui/widgets.py`
+**解決**:
+- 拖入資料夾時改以 `os.listdir()` 掃描第一層符合副檔名的檔案（不遞迴），彈出 `tkinter.messagebox.askyesno` 確認對話框，顯示數量後由使用者決定是否加入
+- 資料夾內無可壓縮檔案時改顯示具體提示，而非舊訊息「不支援拖入資料夾」
+- DropZone 閒置提示文字加入「或資料夾」
+**成果**: ✅ 支援拖入資料夾，確認提示防止誤加入大量檔案
+
 ### 📦 2026-04-28 - exe 打包準備 + 應用程式 icon
 **影響範圍**: `main.py`、`requirements.txt`、`gui/main_window.py`、`build.spec`、`build.bat`、`tools/make_icon.py`、`app.ico`
 **解決**:

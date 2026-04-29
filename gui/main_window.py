@@ -797,14 +797,16 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             batch_done.wait(timeout=2.0)
 
         def worker():
-            has_folder = False
+            folder_files: list[str] = []
             for p in unknown:
                 if self._load_cancelled:
                     break
                 try:
                     if os.path.isdir(p):
-                        has_folder = True
-                        break
+                        for name in os.listdir(p):
+                            full = os.path.join(p, name)
+                            if os.path.isfile(full) and name.lower().endswith(self._VALID_EXTS):
+                                folder_files.append(full)
                 except Exception:
                     pass
 
@@ -825,7 +827,7 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             if batch and not self._load_cancelled:
                 submit_batch(batch, processed)
 
-            self.after(0, self._finish_loading, has_folder, self._load_cancelled)
+            self.after(0, self._finish_loading, bool(unknown), self._load_cancelled, folder_files)
 
         threading.Thread(target=worker, daemon=True).start()
 
@@ -850,12 +852,27 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             if batch_done is not None:
                 batch_done.set()
 
-    def _finish_loading(self, has_folder: bool, cancelled: bool = False):
+    def _finish_loading(self, has_folder: bool, cancelled: bool = False,
+                        folder_files: list[str] | None = None):
         self._set_loading_status("")
         if cancelled:
             self._append_result("⏹  使用者取消載入。\n")
-        if has_folder:
-            self._append_result("⚠️  不支援拖入資料夾，請直接拖入檔案。\n")
+        if not has_folder:
+            return
+        if not folder_files:
+            self._append_result("⚠️  資料夾內無可壓縮的 PDF / JPG / PPTX 檔案。\n")
+            return
+        import tkinter.messagebox as mb
+        count = len(folder_files)
+        ok = mb.askyesno(
+            "加入資料夾檔案",
+            f"偵測到資料夾，第一層共有 {count} 個可壓縮檔案（不含子資料夾）。\n確定要加入嗎？",
+            parent=self,
+        )
+        if ok:
+            self._load_files_async(folder_files, check_folders=False)
+        else:
+            self._append_result("⚠️  已略過拖入的資料夾。\n")
 
     def _set_loading_status(self, text: str):
         # 顯示在 DropZone 上：青色字、清晰可見、就在使用者剛剛操作的位置
