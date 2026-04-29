@@ -1,5 +1,11 @@
 # Changelog
 
+### 📦 2026-04-29 - 新增 Inno Setup 安裝程式設定 + 更換應用程式 icon
+**影響範圍**: `installer.iss`、`app.ico`
+**解決**: 建立 Inno Setup 安裝腳本，將 onedir 打包結果封裝成單一安裝程式 exe；更換應用程式 icon 為 PDF 下載圖示
+**成果**: ✅ 可產生 `PDF壓縮工具_Setup_v1.0.exe` 安裝程式，支援開始功能表與桌面捷徑
+
+
 ### 🐛 2026-04-29 - 修正其他電腦執行 exe 時 LoadLibrary 失敗
 **影響範圍**: `build.spec`
 **解決**: `python313.dll` 的 import table 中有 `python3.dll`（stable ABI DLL），原本打包設定未收集此檔案，導致無 Python 環境的電腦出現「Failed to load Python DLL」錯誤；在 `build.spec` 明確將 `python3.dll` 與 `python313.dll` 加入 `binaries`
