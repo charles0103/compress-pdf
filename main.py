@@ -12,9 +12,19 @@ import customtkinter as ctk
 from gui.main_window import MainWindow
 
 
+def _close_splash():
+    try:
+        import pyi_splash  # type: ignore
+        pyi_splash.close()
+    except Exception:
+        pass
+
+
 def main():
     ctk.set_appearance_mode("System")
     app = MainWindow()
+    app.update_idletasks()
+    app.after(100, _close_splash)
     app.mainloop()
 
 

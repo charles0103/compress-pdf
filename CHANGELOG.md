@@ -1,5 +1,10 @@
 # Changelog
 
+### ✨ 2026-04-30 - 新增 Splash Screen 啟動畫面
+**影響範圍**: `main.py`、`build.spec`、`tools/make_splash.py`、`splash.png`
+**解決**: PyInstaller onedir 首次啟動需 4–5 秒（Defender 掃描 + 檔案系統冷快取 + Python 初始化）；新增 `Splash()` 設定，exe 啟動時立即顯示 480×300 載入畫面（深色青藍主題、含「PDF 壓縮工具」標題與「載入中」提示），主視窗就緒後 100ms 透過 `pyi_splash.close()` 關閉
+**成果**: ✅ 使用者按下 exe 後 0.5 秒內看到啟動畫面，避免「沒反應」誤判而重複點擊
+
 ### 📦 2026-04-30 - 安裝程式發行者改為公司名稱
 **影響範圍**: `installer.iss`
 **解決**: `AppPublisher` 由 `Charles` 改為 `FU RONG DEVELOPMENT`
