@@ -17,12 +17,18 @@ WHITE = (240, 248, 255, 255)
 GRAY = (140, 160, 175, 255)
 
 
-def _try_font(size: int, bold: bool = True) -> ImageFont.ImageFont:
-    candidates = [
-        r"C:\Windows\Fonts\segoeuib.ttf" if bold else r"C:\Windows\Fonts\segoeui.ttf",
-        r"C:\Windows\Fonts\msjhbd.ttc" if bold else r"C:\Windows\Fonts\msjh.ttc",
-        r"C:\Windows\Fonts\arialbd.ttf" if bold else r"C:\Windows\Fonts\arial.ttf",
-    ]
+def _try_font(size: int, bold: bool = True, cjk: bool = False) -> ImageFont.ImageFont:
+    if cjk:
+        candidates = [
+            r"C:\Windows\Fonts\msjhbd.ttc" if bold else r"C:\Windows\Fonts\msjh.ttc",
+            r"C:\Windows\Fonts\msyhbd.ttc" if bold else r"C:\Windows\Fonts\msyh.ttc",
+            r"C:\Windows\Fonts\simhei.ttf",
+        ]
+    else:
+        candidates = [
+            r"C:\Windows\Fonts\segoeuib.ttf" if bold else r"C:\Windows\Fonts\segoeui.ttf",
+            r"C:\Windows\Fonts\arialbd.ttf" if bold else r"C:\Windows\Fonts\arial.ttf",
+        ]
     for path in candidates:
         if os.path.exists(path):
             return ImageFont.truetype(path, size)
@@ -50,7 +56,7 @@ def render() -> Image.Image:
 
     # 主標題「PDF 壓縮工具」
     title = "PDF 壓縮工具"
-    title_font = _try_font(36, bold=True)
+    title_font = _try_font(36, bold=True, cjk=True)
     bbox = d.textbbox((0, 0), title, font=title_font)
     tw = bbox[2] - bbox[0]
     tx = (WIDTH - tw) // 2 - bbox[0]
@@ -71,7 +77,7 @@ def render() -> Image.Image:
 
     # 載入提示
     loading = "載入中，請稍候..."
-    load_font = _try_font(13, bold=False)
+    load_font = _try_font(13, bold=False, cjk=True)
     lbbox = d.textbbox((0, 0), loading, font=load_font)
     lw = lbbox[2] - lbbox[0]
     lx = (WIDTH - lw) // 2 - lbbox[0]

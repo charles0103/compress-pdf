@@ -1,5 +1,10 @@
 # Changelog
 
+### 🐛 2026-04-30 - 修正啟動畫面中文顯示為豆腐方塊
+**影響範圍**: `tools/make_splash.py`、`splash.png`
+**解決**: 原本字型優先序 Segoe UI 不含 CJK 字形，「壓縮工具」「載入中」皆無法渲染；改為依用途切換字型 — 中文文字使用微軟正黑體（msjhbd.ttc / msjh.ttc），英文保留 Segoe UI
+**成果**: ✅ 啟動畫面中文字正確顯示
+
 ### ✨ 2026-04-30 - 新增 Splash Screen 啟動畫面
 **影響範圍**: `main.py`、`build.spec`、`tools/make_splash.py`、`splash.png`
 **解決**: PyInstaller onedir 首次啟動需 4–5 秒（Defender 掃描 + 檔案系統冷快取 + Python 初始化）；新增 `Splash()` 設定，exe 啟動時立即顯示 480×300 載入畫面（深色青藍主題、含「PDF 壓縮工具」標題與「載入中」提示），主視窗就緒後 100ms 透過 `pyi_splash.close()` 關閉
