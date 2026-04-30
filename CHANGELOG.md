@@ -1,5 +1,10 @@
 # Changelog
 
+### 🐛 2026-04-30 - 修正 build.bat 在 Windows 執行出現「命令語法不正確」
+**影響範圍**: `build.bat`、新增 `.gitattributes`
+**解決**: `build.bat` 行尾被 git 自動轉為 LF，cmd.exe 解析時將多行指令連成一行而報錯；轉回 CRLF 並新增 `.gitattributes` 強制 `.bat` / `.cmd` / `.ps1` / `.iss` 永遠保持 CRLF
+**成果**: ✅ `.\build.bat` 可在 PowerShell 與 cmd 正常執行
+
 ### ✨ 2026-04-30 - UI 新增「使用說明」對話框
 **影響範圍**: `gui/main_window.py`
 **解決**: 標題列右上角新增「❓ 使用說明」按鈕，點擊開啟 `CTkToplevel` 視窗，內含可捲動的 `CTkTextbox` 顯示使用導覽（快速開始、三種壓縮模式適用情境、DPI / 品質建議、檔名樣板範例、並行壓縮建議、FAQ）；重複點擊不會開多個視窗
