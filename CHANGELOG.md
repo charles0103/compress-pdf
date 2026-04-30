@@ -1,5 +1,10 @@
 # Changelog
 
+### 📦 2026-04-30 - 安裝程式發行者改為公司名稱
+**影響範圍**: `installer.iss`
+**解決**: `AppPublisher` 由 `Charles` 改為 `FU RONG DEVELOPMENT`
+**成果**: ✅ 重新編譯後「程式和功能」與安裝程式 UI 顯示公司名稱
+
 ### 🐛 2026-04-30 - 修正 build.bat 在 Windows 執行出現「命令語法不正確」
 **影響範圍**: `build.bat`、新增 `.gitattributes`
 **解決**: `build.bat` 行尾被 git 自動轉為 LF，cmd.exe 解析時將多行指令連成一行而報錯；轉回 CRLF 並新增 `.gitattributes` 強制 `.bat` / `.cmd` / `.ps1` / `.iss` 永遠保持 CRLF

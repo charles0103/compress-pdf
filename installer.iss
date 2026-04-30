@@ -4,7 +4,7 @@
 
 #define AppName "PDF壓縮工具"
 #define AppVersion "1.0"
-#define AppPublisher "Charles"
+#define AppPublisher "FU RONG DEVELOPMENT"
 #define AppExeName "PDF壓縮工具.exe"
 #define SourceDir "dist\PDF壓縮工具"
 
