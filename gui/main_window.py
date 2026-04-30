@@ -26,6 +26,136 @@ DPI_OPTIONS = [
 _DPI_MAP = {opt: int(opt.split()[0]) for opt in DPI_OPTIONS}
 
 
+_HELP_TEXT = """\
+PDF 壓縮工具 - 使用說明
+
+═══════════════════════════════════════════
+一、快速開始（三步驟）
+═══════════════════════════════════════════
+
+  1. 將檔案或資料夾拖入虛線框，或點擊「瀏覽檔案」選擇
+     支援格式：PDF、JPG / JPEG、PPTX
+
+  2. 在「壓縮模式」選擇一種壓縮方式
+     不確定就先選「圖片優化」，多數情況下效果與品質平衡最佳
+
+  3. 按下「▶ 開始壓縮」，等待進度條跑完即可
+     輸出檔案預設放在原始資料夾的 compressed/ 子資料夾
+
+
+═══════════════════════════════════════════
+二、壓縮模式怎麼選？
+═══════════════════════════════════════════
+
+  ● 無失真
+    完全不損失任何畫質，只重新壓縮 PDF 的內部資料流。
+    適合：合約、發票、純文字 PDF、需要保留原始品質的文件。
+    壓縮率：通常 5%–20%，視原檔而定。
+
+  ● 圖片優化（推薦預設）
+    將 PDF 內嵌圖片重採樣到指定 DPI，文字與向量圖完全不變。
+    適合：含掃描頁、含大量插圖的報告、簡報轉 PDF 等。
+    壓縮率：通常 30%–70%，依圖片密度而定。
+
+  ● 高壓縮
+    在「圖片優化」基礎上，再以低品質 JPEG 強制重新編碼所有圖片。
+    適合：純粹要小檔上傳、Email 附件，且不在意圖片細節時。
+    壓縮率：通常 60%–90%，但圖片會明顯變糊。
+
+
+═══════════════════════════════════════════
+三、DPI 與圖片品質怎麼設定？
+═══════════════════════════════════════════
+
+  ▸ 圖片解析度（DPI）— 僅模式 2 / 3 生效
+      300 DPI（印刷）— 高品質列印用
+      200 DPI（標準）— 一般文件、家用列印
+      150 DPI（一般文件）— 螢幕閱讀也夠清楚 ★ 建議起點
+       96 DPI（螢幕）— 純螢幕瀏覽
+       72 DPI（網頁）— 最低，僅縮圖預覽
+
+  ▸ 圖片品質（JPEG Quality）— 僅模式 3 生效
+      85–95：肉眼看不出差別
+      70–85：略有壓縮痕跡，檔案小很多 ★ 建議起點
+      50–70：明顯失真，僅適合不在意畫質時
+
+  小技巧：壓縮前可按「📊 分析圖片」先看 PDF 內嵌圖片的 DPI 分佈，
+        再決定要降到多少。
+
+
+═══════════════════════════════════════════
+四、輸出設定
+═══════════════════════════════════════════
+
+  ▸ 輸出資料夾
+    留空 = 與原始檔案同目錄下的 compressed/ 子資料夾
+    指定 = 所有輸出檔案放到該資料夾
+
+  ▸ 保留原始檔名
+    勾選後，輸出檔名與原始檔相同（自動放到 compressed/ 子資料夾，
+    避免覆蓋原檔）。
+
+  ▸ 輸出檔名樣板
+    支援以下佔位符（可用按鈕一鍵插入）：
+      {name}   原始檔名（不含副檔名）
+      {date}   今天日期，格式 YYYYMMDD
+      {index}  批次中的序號，從 1 開始
+    範例：
+      {name}_compressed       → report_compressed.pdf
+      {date}_{name}           → 20260430_report.pdf
+      {index:03d}_{name}      → 001_report.pdf
+
+  ▸ 保留原始日期
+    勾選後，壓縮後的新檔會還原原檔的「建立時間」與「修改時間」，
+    在檔案總管中排序時不會跳到最上面。
+
+
+═══════════════════════════════════════════
+五、並行壓縮
+═══════════════════════════════════════════
+
+  ▸ 1（順序）— 一次壓一個，最穩定
+  ▸ 2 / 4   — 同時壓 N 個檔案，多核 CPU 可大幅縮短時間
+  ▸ 自動    — 依 CPU 核心數自動決定（通常是核心數的一半）
+
+  建議：
+   • 4–8 核心電腦選「自動」或「4」
+   • 大量小檔（>100 個）並行加速最明顯
+   • 若記憶體吃緊或檔案非常大（單檔 >500MB），改回「1 順序」
+
+
+═══════════════════════════════════════════
+六、其他實用功能
+═══════════════════════════════════════════
+
+  ● 拖入資料夾：會掃描第一層的所有支援格式檔案，會跳出確認框
+  ● 壓縮格式篩選：只想壓縮 PDF 不壓 JPG？取消勾選即可
+  ● 停止壓縮：批次進行中按下紅色「⏹ 停止壓縮」，不再處理後續檔案
+  ● 匯出日誌：壓縮完成後可將結果匯出為 txt 文字檔留存
+  ● 主題切換：右上角 🌙 / ☀️ 切換深色／淺色主題
+
+
+═══════════════════════════════════════════
+七、常見問題
+═══════════════════════════════════════════
+
+  Q：為什麼選了「無失真」檔案幾乎沒變小？
+  A：原檔可能本來就是高度壓縮過的 PDF，或內容以向量為主。
+     試試「圖片優化」模式。
+
+  Q：壓縮後檔案反而變大了？
+  A：少數已被優化過的 PDF 重新編碼後可能略增。建議：
+     • 先用「📊 分析圖片」確認原檔狀態
+     • 嘗試「無失真」或保留原檔即可
+
+  Q：可以批次處理上千個檔案嗎？
+  A：可以。本工具支援虛擬化清單與並行壓縮，數千檔仍可順暢執行。
+
+  Q：壓縮過程能不能取消？
+  A：可以。載入檔案中可按「取消載入」、壓縮中可按「⏹ 停止壓縮」。
+"""
+
+
 class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
     """PDF 壓縮工具主視窗。"""
 
@@ -132,6 +262,19 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             text_color=("gray10", "#00D1FF"),
         ).grid(row=0, column=0, sticky="w")
 
+        self._help_btn = ctk.CTkButton(
+            header,
+            text="❓ 使用說明",
+            width=96, height=28,
+            fg_color="transparent",
+            hover_color=("gray80", "#0D2530"),
+            text_color=("gray10", "#888888"),
+            border_width=1,
+            border_color=("gray70", "#2E2E2E"),
+            command=self._show_help,
+        )
+        self._help_btn.grid(row=0, column=1, sticky="e", padx=(0, 8))
+
         self._theme_btn = ctk.CTkButton(
             header,
             text="🌙",
@@ -143,10 +286,10 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             border_color=("gray70", "#2E2E2E"),
             command=self._toggle_theme,
         )
-        self._theme_btn.grid(row=0, column=1, sticky="e")
+        self._theme_btn.grid(row=0, column=2, sticky="e")
 
         self._divider = GradientDivider(header)
-        self._divider.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(8, 2))
+        self._divider.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(8, 2))
 
     def _build_drop_zone(self, parent, row: int):
         self._drop_zone = DropZone(parent, on_click=self._browse_files)
@@ -620,6 +763,55 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         ctk.set_appearance_mode(new_mode)
         self._theme_btn.configure(text="☀️" if new_mode == "Dark" else "🌙")
         self._divider._draw()
+
+    def _show_help(self):
+        if getattr(self, "_help_window", None) is not None and self._help_window.winfo_exists():
+            self._help_window.lift()
+            self._help_window.focus()
+            return
+
+        win = ctk.CTkToplevel(self)
+        win.title("使用說明 - PDF 壓縮工具")
+        win.geometry("640x560")
+        win.minsize(520, 420)
+        try:
+            win.transient(self)
+        except Exception:
+            pass
+
+        if getattr(sys, "frozen", False):
+            base = getattr(sys, "_MEIPASS", os.path.dirname(sys.executable))
+        else:
+            base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        ico_path = os.path.join(base, "app.ico")
+        if os.path.exists(ico_path):
+            try:
+                win.after(200, lambda p=ico_path: win.iconbitmap(p))
+            except Exception:
+                pass
+
+        win.grid_rowconfigure(0, weight=1)
+        win.grid_columnconfigure(0, weight=1)
+
+        textbox = ctk.CTkTextbox(
+            win,
+            wrap="word",
+            font=ctk.CTkFont(family="Segoe UI", size=13),
+        )
+        textbox.grid(row=0, column=0, sticky="nsew", padx=14, pady=(14, 8))
+        textbox.insert("1.0", _HELP_TEXT)
+        textbox.configure(state="disabled")
+
+        btn_close = ctk.CTkButton(
+            win,
+            text="關閉",
+            width=96, height=32,
+            command=win.destroy,
+        )
+        btn_close.grid(row=1, column=0, sticky="e", padx=14, pady=(0, 14))
+
+        self._help_window = win
+        win.protocol("WM_DELETE_WINDOW", lambda: (setattr(self, "_help_window", None), win.destroy()))
     def _on_mode_seg_change(self, label: str):
         mapping = {"無失真": 1, "圖片優化": 2, "高壓縮": 3}
         self._mode_var.set(mapping.get(label, 1))

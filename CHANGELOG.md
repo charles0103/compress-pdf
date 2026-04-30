@@ -1,5 +1,15 @@
 # Changelog
 
+### ✨ 2026-04-30 - UI 新增「使用說明」對話框
+**影響範圍**: `gui/main_window.py`
+**解決**: 標題列右上角新增「❓ 使用說明」按鈕，點擊開啟 `CTkToplevel` 視窗，內含可捲動的 `CTkTextbox` 顯示使用導覽（快速開始、三種壓縮模式適用情境、DPI / 品質建議、檔名樣板範例、並行壓縮建議、FAQ）；重複點擊不會開多個視窗
+**成果**: ✅ 新使用者可透過 UI 直接查閱操作說明，不需翻閱外部文件
+
+### 🐛 2026-04-30 - 修正「程式和功能」中卸載項目沒有套用應用程式 icon
+**影響範圍**: `installer.iss`
+**解決**: `SetupIconFile` 只控制安裝程式 exe 自身的圖示，與 Windows「程式和功能」列表無關；補上 `UninstallDisplayIcon={app}\{#AppExeName}` 與 `UninstallDisplayName`，讓卸載清單讀取 exe 內嵌圖示
+**成果**: ✅ 重新編譯安裝程式後，「程式和功能」中正確顯示 PDF 圖示（需先卸載舊版再重裝以更新註冊表）
+
 ### 📦 2026-04-29 - 新增 Inno Setup 安裝程式設定 + 更換應用程式 icon
 **影響範圍**: `installer.iss`、`app.ico`
 **解決**: 建立 Inno Setup 安裝腳本，將 onedir 打包結果封裝成單一安裝程式 exe；更換應用程式 icon 為 PDF 下載圖示
