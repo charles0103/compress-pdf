@@ -13,7 +13,7 @@ from core.compressor import CompressOptions, CompressResult, compress_batch, ana
 from core.pptx_compressor import analyze_pptx
 from utils.file_utils import format_size, size_delta_str
 from utils.settings import load_settings, save_settings
-from gui.widgets import DropZone, FileListItem, AnimatedBorderFrame, GradientDivider, CTkSplitter, VirtualFileList
+from gui.widgets import DropZone, FileListItem, AnimatedBorderFrame, GradientDivider, CTkSplitter, VirtualFileList, PasswordDialog
 
 
 DPI_OPTIONS = [
@@ -61,6 +61,13 @@ PDF 壓縮工具 - 使用說明
     在「圖片優化」基礎上，再以低品質 JPEG 強制重新編碼所有圖片。
     適合：純粹要小檔上傳、Email 附件，且不在意圖片細節時。
     壓縮率：通常 60%–90%，但圖片會明顯變糊。
+
+  ● 🔓 解除密碼
+    開啟加密 PDF 並另存為無密碼版本（此模式不壓縮，僅去除密碼）。
+    ‧ 僅權限限制（禁列印/複製）的檔案：直接移除限制，無需輸入密碼。
+    ‧ 開啟即需密碼的檔案：會逐一跳出輸入框，請輸入正確密碼。
+    輸出檔名為「原檔名_unlocked.pdf」，僅處理 PDF。
+    ⚠️ 請確認您擁有合法處理該檔案的權限；本功能需正確密碼，無法破解。
 
 
 ═══════════════════════════════════════════
@@ -351,7 +358,7 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             text_color=("gray30", "#888888"),
         ).grid(row=0, column=0, columnspan=2, sticky="w", padx=12, pady=(6, 2))
         self._mode_var = tk.IntVar(value=1)
-        _mode_labels = ["無失真", "圖片優化", "高壓縮"]
+        _mode_labels = ["無失真", "圖片優化", "高壓縮", "🔓 解除密碼"]
         self._mode_seg = ctk.CTkSegmentedButton(
             opt_frame,
             values=_mode_labels,
@@ -714,7 +721,7 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
     def _load_settings(self):
         s = load_settings()
         self._mode_var.set(s["mode"])
-        _mode_label_map = {1: "無失真", 2: "圖片優化", 3: "高壓縮"}
+        _mode_label_map = {0: "🔓 解除密碼", 1: "無失真", 2: "圖片優化", 3: "高壓縮"}
         self._mode_seg.set(_mode_label_map.get(s["mode"], "無失真"))
         self._dpi_menu.set(s["dpi"])
         self._quality_slider.set(s["quality"])
@@ -813,16 +820,40 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         self._help_window = win
         win.protocol("WM_DELETE_WINDOW", lambda: (setattr(self, "_help_window", None), win.destroy()))
     def _on_mode_seg_change(self, label: str):
-        mapping = {"無失真": 1, "圖片優化": 2, "高壓縮": 3}
+        mapping = {"無失真": 1, "圖片優化": 2, "高壓縮": 3, "🔓 解除密碼": 0}
         self._mode_var.set(mapping.get(label, 1))
         self._on_mode_change()
 
     def _on_mode_change(self):
         mode = self._mode_var.get()
+        # 解除密碼（mode 0）不涉及重採樣與品質，停用相關選項
         dpi_state = "normal" if mode >= 2 else "disabled"
         quality_state = "normal" if mode == 3 else "disabled"
         self._dpi_menu.configure(state=dpi_state)
         self._quality_slider.configure(state=quality_state)
+
+    def _ask_password(self, filename: str, attempt: int) -> str | None:
+        """供解密 worker 於背景執行緒呼叫：在主執行緒彈出密碼輸入框並阻塞等待。
+
+        回傳使用者輸入的密碼；回傳 None 代表使用者取消（該檔略過）。
+        attempt 為從 0 起算的重試次數，用於提示密碼錯誤。
+        """
+        done = threading.Event()
+        box: dict[str, str | None] = {}
+
+        def show():
+            hint = "" if attempt == 0 else f"\n（密碼錯誤，請重試，第 {attempt + 1} 次）"
+            dlg = PasswordDialog(
+                self,
+                title="🔓 PDF 已加密",
+                prompt=f"「{filename}」需要密碼才能開啟{hint}\n請輸入此檔案的開啟密碼：",
+            )
+            box["pw"] = dlg.get_input()  # None = 使用者按取消或關閉
+            done.set()
+
+        self.after(0, show)
+        done.wait()
+        return box.get("pw")
 
     def _on_level_change(self, val):
         self._level_label.configure(text=str(int(round(float(val)))))
@@ -1207,11 +1238,20 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         if self._fmt_pptx_var.get():
             allowed_exts.add(".pptx")
 
-        active_paths = [p for p in self._file_paths
-                        if Path(p).suffix.lower() in allowed_exts]
-        if not active_paths:
-            self._append_result("⚠️  沒有符合已勾選格式的檔案，請至少勾選一種格式。\n")
-            return
+        mode = self._mode_var.get()
+        if mode == 0:
+            # 解除密碼僅適用 PDF，忽略格式勾選
+            active_paths = [p for p in self._file_paths
+                            if Path(p).suffix.lower() == ".pdf"]
+            if not active_paths:
+                self._append_result("⚠️  解除密碼僅支援 PDF，清單中沒有 PDF 檔案。\n")
+                return
+        else:
+            active_paths = [p for p in self._file_paths
+                            if Path(p).suffix.lower() in allowed_exts]
+            if not active_paths:
+                self._append_result("⚠️  沒有符合已勾選格式的檔案，請至少勾選一種格式。\n")
+                return
 
         output_dir = self._output_dir_var.get()
         if output_dir in ("（與原始檔案相同目錄）", "（自動建立 compressed/ 子資料夾）"):
@@ -1263,6 +1303,7 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             on_done=self._on_batch_done,
             should_cancel=lambda: self._cancel_requested,
             max_workers=max_workers,
+            password_provider=self._ask_password,
         )
 
     def _on_file_done(self, done: int, total: int, result: CompressResult):

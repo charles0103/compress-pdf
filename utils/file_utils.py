@@ -26,6 +26,7 @@ def default_output_path(
     keep_filename: bool = False,
     filename_template: str = "",
     file_index: int = 1,
+    default_suffix: str = "_compressed",
 ) -> str:
     from datetime import date
 
@@ -44,7 +45,7 @@ def default_output_path(
     elif keep_filename:
         out_name = filename
     else:
-        out_name = f"{base}_compressed{ext}"
+        out_name = f"{base}{default_suffix}{ext}"
 
     if output_dir:
         folder = output_dir

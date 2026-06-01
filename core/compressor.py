@@ -8,6 +8,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from typing import Callable
 
+from core.decrypt import decrypt_pdf, PasswordRequired, WrongPassword
 from core.lossless import compress_lossless
 from core.image_optimizer import optimize_images, analyze_pdf_images, PdfAnalysisResult
 from core.jpg_compressor import compress_jpg
@@ -18,10 +19,46 @@ _JPG_EXTS = {".jpg", ".jpeg"}
 _PPTX_EXT = ".pptx"
 _LEGACY_PPT_EXT = ".ppt"
 
+_MAX_PASSWORD_ATTEMPTS = 3
+
+# 解密模式向 GUI 索取密碼的回呼：(檔名, 第幾次嘗試從 0 起算) -> 密碼字串；
+# 回傳 None 代表使用者取消（該檔略過）。
+PasswordProvider = Callable[[str, int], "str | None"]
+
+
+def _decrypt_pdf_file(
+    input_path: str,
+    output_path: str,
+    password_provider: "PasswordProvider | None",
+) -> None:
+    """解除 PDF 密碼。先試空密碼（涵蓋未加密與純權限密碼），
+    需要 user 密碼時透過 password_provider 向 GUI 索取，最多重試數次。
+    """
+    try:
+        decrypt_pdf(input_path, output_path, "")
+        return
+    except PasswordRequired:
+        pass
+
+    if password_provider is None:
+        raise ValueError("此檔案需要開啟密碼")
+
+    filename = os.path.basename(input_path)
+    for attempt in range(_MAX_PASSWORD_ATTEMPTS):
+        password = password_provider(filename, attempt)
+        if password is None:
+            raise ValueError("已略過（使用者取消密碼輸入）")
+        try:
+            decrypt_pdf(input_path, output_path, password)
+            return
+        except WrongPassword:
+            continue
+    raise ValueError("密碼錯誤，已達重試上限")
+
 
 @dataclass
 class CompressOptions:
-    mode: int = 1              # 1=無失真, 2=圖片優化, 3=高壓縮
+    mode: int = 1              # 0=解除密碼, 1=無失真, 2=圖片優化, 3=高壓縮
     level: int = 9             # flate 壓縮等級 1-9
     dpi: int = 150             # 圖片目標 DPI（模式 2/3 有效）
     quality: int = 75          # JPEG 品質 50-95（模式 3 有效）
@@ -46,17 +83,20 @@ class CompressResult:
 def compress_file(
     input_path: str,
     opts: CompressOptions,
+    password_provider: "PasswordProvider | None" = None,
 ) -> CompressResult:
     output_path = ""
     size_before = 0
     try:
         size_before = os.path.getsize(input_path)
+        suffix = "_unlocked" if opts.mode == 0 else "_compressed"
         output_path = default_output_path(
             input_path,
             opts.output_dir or None,
             keep_filename=opts.keep_filename,
             filename_template=opts.filename_template,
             file_index=opts.file_index,
+            default_suffix=suffix,
         )
     except PermissionError as exc:
         return CompressResult(input_path, "", size_before, 0, False, f"存取被拒：{exc}")
@@ -66,7 +106,11 @@ def compress_file(
     ext = os.path.splitext(input_path)[1].lower()
 
     try:
-        if ext in _JPG_EXTS:
+        if opts.mode == 0:
+            if ext != ".pdf":
+                raise ValueError("解除密碼僅支援 PDF 檔案")
+            _decrypt_pdf_file(input_path, output_path, password_provider)
+        elif ext in _JPG_EXTS:
             compress_jpg(input_path, output_path, opts.mode, opts.dpi, opts.quality)
         elif ext == _PPTX_EXT:
             compress_pptx(input_path, output_path, opts.mode, opts.dpi, opts.quality)
@@ -157,12 +201,16 @@ def compress_batch(
     on_done: Callable[[list[CompressResult]], None],
     should_cancel: Callable[[], bool] | None = None,
     max_workers: int = 1,
+    password_provider: "PasswordProvider | None" = None,
 ) -> threading.Thread:
     """在背景執行緒批次壓縮，每完成一個檔案呼叫 on_progress，全部完成後呼叫 on_done。
 
     max_workers > 1 時使用 ThreadPoolExecutor 並行壓縮。
     should_cancel 回傳 True 時：尚未開始的任務跳過，已在執行的任務完成後停止。
+    解密模式（mode 0）需向 GUI 彈框索取密碼，強制單執行緒並走 thread 路徑。
     """
+    if opts.mode == 0:
+        max_workers = 1
 
     def _run_one(idx: int, path: str) -> tuple[int, CompressResult]:
         if should_cancel and should_cancel():
@@ -172,7 +220,7 @@ def compress_batch(
         file_opts = dataclasses.replace(opts, file_index=idx + 1)
         t0 = time.perf_counter()
         try:
-            result = compress_file(path, file_opts)
+            result = compress_file(path, file_opts, password_provider)
         except Exception as exc:
             result = CompressResult(path, "", 0, 0, False, f"未預期錯誤：{exc}")
         result.elapsed = time.perf_counter() - t0

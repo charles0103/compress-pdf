@@ -53,6 +53,7 @@ utils/
 
 | mode | 說明 | 呼叫路徑 |
 |------|------|----------|
+| 0 解除密碼 | 開啟加密 PDF 並輸出無密碼版本（不壓縮） | `decrypt_pdf()` |
 | 1 無失真 | pikepdf 重壓串流 | `compress_lossless()` |
 | 2 圖片優化 | 降 DPI → lossless | `optimize_images()` → `compress_lossless()` |
 | 3 高壓縮 | 降 DPI + 低品質 JPEG → lossless | `optimize_images()` → `compress_lossless()` |

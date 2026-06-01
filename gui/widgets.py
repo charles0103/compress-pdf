@@ -471,3 +471,118 @@ class DropZone(ctk.CTkButton):
         )
         self._scan_step += 1
         self._scan_job = self.after(160, self._scan_cycle)
+
+
+class PasswordDialog(ctk.CTkToplevel):
+    """遮罩式密碼輸入對話框，附眼睛圖示可切換明碼/遮罩。
+
+    用法：
+        pw = PasswordDialog(master, title, prompt).get_input()
+    get_input() 阻塞至使用者關閉，回傳密碼字串，或 None（取消/關閉）。
+    """
+
+    def __init__(self, master, title="輸入密碼", prompt="請輸入密碼：",
+                 *, mask="•"):
+        super().__init__(master)
+        self._result: str | None = None
+        self._mask = mask
+        self._revealed = False
+
+        self.title(title)
+        self.resizable(False, False)
+        self.configure(fg_color=("gray94", "#232323"))
+        self.transient(master)
+        self.protocol("WM_DELETE_WINDOW", self._cancel)
+        self.bind("<Escape>", lambda _e: self._cancel())
+        self.bind("<Return>", lambda _e: self._submit())
+
+        self._build(prompt)
+        self.after(80, self._center_and_focus)
+
+    def _build(self, prompt: str):
+        self.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            self, text=prompt, justify="left",
+            font=ctk.CTkFont(family="Segoe UI", size=13),
+            text_color=("gray20", "#DDDDDD"),
+        ).grid(row=0, column=0, sticky="w", padx=20, pady=(18, 8))
+
+        row = ctk.CTkFrame(self, fg_color="transparent")
+        row.grid(row=1, column=0, sticky="ew", padx=20)
+        row.grid_columnconfigure(0, weight=1)
+
+        self._entry = ctk.CTkEntry(
+            row, show=self._mask, width=260,
+            font=ctk.CTkFont(family="Segoe UI", size=13),
+            fg_color=("gray80", "#1A1A1A"),
+            border_color=("gray65", _BORDER_IDLE),
+            text_color=("gray10", "#FFFFFF"),
+        )
+        self._entry.grid(row=0, column=0, sticky="ew", padx=(0, 6))
+
+        self._eye_btn = ctk.CTkButton(
+            row, text="\U0001F441", width=38,
+            font=ctk.CTkFont(size=15),
+            fg_color=("gray80", "#1A1A1A"),
+            hover_color=("gray70", "#004D66"),
+            text_color=("gray10", _CYAN),
+            command=self._toggle_reveal,
+        )
+        self._eye_btn.grid(row=0, column=1)
+
+        btns = ctk.CTkFrame(self, fg_color="transparent")
+        btns.grid(row=2, column=0, sticky="e", padx=20, pady=(14, 16))
+
+        ctk.CTkButton(
+            btns, text="取消", width=80,
+            font=ctk.CTkFont(family="Segoe UI", size=12),
+            fg_color=("gray80", "#2A2A2A"),
+            hover_color=("gray70", "#3A3A3A"),
+            text_color=("gray10", "#CCCCCC"),
+            command=self._cancel,
+        ).grid(row=0, column=0, padx=(0, 8))
+
+        ctk.CTkButton(
+            btns, text="確定", width=80,
+            font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
+            fg_color=("gray30", "#00A8CC"),
+            hover_color=("gray20", _CYAN_MID),
+            text_color=("gray98", "#FFFFFF"),
+            command=self._submit,
+        ).grid(row=0, column=1)
+
+    def _center_and_focus(self):
+        self.update_idletasks()
+        try:
+            m = self.master
+            mx, my = m.winfo_rootx(), m.winfo_rooty()
+            mw, mh = m.winfo_width(), m.winfo_height()
+            w, h = self.winfo_width(), self.winfo_height()
+            x = mx + (mw - w) // 2
+            y = my + (mh - h) // 3
+            self.geometry(f"+{max(x, 0)}+{max(y, 0)}")
+        except Exception:
+            pass
+        self.lift()
+        self.grab_set()
+        self._entry.focus_set()
+
+    def _toggle_reveal(self):
+        self._revealed = not self._revealed
+        self._entry.configure(show="" if self._revealed else self._mask)
+        self._eye_btn.configure(text="\U0001F648" if self._revealed else "\U0001F441")
+
+    def _submit(self):
+        self._result = self._entry.get()
+        self.grab_release()
+        self.destroy()
+
+    def _cancel(self):
+        self._result = None
+        self.grab_release()
+        self.destroy()
+
+    def get_input(self) -> str | None:
+        self.master.wait_window(self)
+        return self._result
