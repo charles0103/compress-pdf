@@ -3,7 +3,7 @@
 ; 下載 Inno Setup：https://jrsoftware.org/isdl.php
 
 #define AppName "PDF壓縮工具"
-#define AppVersion "1.0"
+#define AppVersion "1.1"
 #define AppPublisher "FU RONG DEVELOPMENT"
 #define AppExeName "PDF壓縮工具.exe"
 #define SourceDir "dist\PDF壓縮工具"

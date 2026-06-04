@@ -1,5 +1,10 @@
 # Changelog
 
+### ✨ 2026-06-04 - v1.1 版本號顯示於 UI
+**影響範圍**: `gui/main_window.py`、`installer.iss`
+**解決**: 標題列「PDF 壓縮工具」右側新增 v1.1 灰色小字版本號；安裝程式版本從 1.0 升至 1.1
+**成果**: ✅ 使用者可在 UI 直接確認版本
+
 ### 🐛 2026-04-30 - 修正啟動畫面中文顯示為豆腐方塊
 **影響範圍**: `tools/make_splash.py`、`splash.png`
 **解決**: 原本字型優先序 Segoe UI 不含 CJK 字形，「壓縮工具」「載入中」皆無法渲染；改為依用途切換字型 — 中文文字使用微軟正黑體（msjhbd.ttc / msjh.ttc），英文保留 Segoe UI

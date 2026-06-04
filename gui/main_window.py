@@ -262,12 +262,22 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         header.grid(row=0, column=0, sticky="ew", padx=16, pady=(14, 0))
         header.grid_columnconfigure(0, weight=1)
 
+        title_frame = ctk.CTkFrame(header, fg_color="transparent")
+        title_frame.grid(row=0, column=0, sticky="w")
+
         ctk.CTkLabel(
-            header,
+            title_frame,
             text="PDF 壓縮工具",
             font=ctk.CTkFont(family="Segoe UI", size=20, weight="bold"),
             text_color=("gray10", "#00D1FF"),
         ).grid(row=0, column=0, sticky="w")
+
+        ctk.CTkLabel(
+            title_frame,
+            text="v1.1",
+            font=ctk.CTkFont(family="Segoe UI", size=13),
+            text_color=("gray50", "#666666"),
+        ).grid(row=0, column=1, sticky="w", padx=(8, 0))
 
         self._help_btn = ctk.CTkButton(
             header,
