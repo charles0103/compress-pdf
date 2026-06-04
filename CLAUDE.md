@@ -14,6 +14,30 @@ python main.py
 
 目前無測試套件。
 
+## 打包與發布流程
+
+### 步驟一：PyInstaller 打包
+```bash
+pyinstaller build.spec --clean --noconfirm
+```
+產出：`dist/PDF壓縮工具/`（整個資料夾為可攜應用程式）
+
+### 步驟二：Inno Setup 製作安裝程式
+1. 用 Inno Setup Compiler 開啟 `installer.iss`
+2. 按 F9 編譯
+3. 產出：`installer_output/PDF壓縮工具_Setup_v{版本}.exe`
+
+### 步驟三：發布到 GitHub Releases
+1. GitHub repo 頁面 → Releases → Draft a new release
+2. Tag：`v{版本}`，Title：`PDF 壓縮工具 v{版本}`
+3. 上傳 `installer_output/` 裡的 `.exe` 到 Assets
+4. Publish release
+5. 分享連結：`https://github.com/charles0103/compress-pdf/releases/latest`
+
+### 升版時需修改的地方
+- `installer.iss` 第 6 行 `AppVersion`
+- `gui/main_window.py` header 的 `text="v{版本}"`
+
 ## Architecture
 
 純 Python 的 Windows GUI 工具，無 web 後端。
