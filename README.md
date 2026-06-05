@@ -115,4 +115,4 @@ pyinstaller build.spec --clean --noconfirm
 
 ## 📄 授權
 
-本專案由 FU RONG DEVELOPMENT 開發。
+本專案由 Charles 開發。
