@@ -385,37 +385,12 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         self._mode_seg.grid(row=1, column=0, columnspan=2, sticky="ew",
                             padx=12, pady=(0, 2))
 
-        # 壓縮等級（pikepdf 9+ 已自動最佳化，此 slider 僅保留 UI 一致性）
-        ctk.CTkLabel(
-            opt_frame, text="壓縮等級（自動）",
-            font=ctk.CTkFont(family="Segoe UI", size=12),
-            text_color=("gray30", "#888888"),
-        ).grid(row=2, column=0, sticky="w", padx=12, pady=(3, 0))
-        self._level_label = ctk.CTkLabel(
-            opt_frame, text="9",
-            font=ctk.CTkFont(family="Segoe UI", size=12),
-            text_color=("gray30", "#00D1FF"),
-        )
-        self._level_label.grid(row=2, column=1, sticky="e", padx=12)
-
-        self._level_slider = ctk.CTkSlider(
-            opt_frame, from_=1, to=9, number_of_steps=8,
-            button_color=("gray55", "#00D1FF"),
-            button_hover_color=("gray40", "#008FAD"),
-            progress_color=("gray55", "#00A8CC"),
-            command=self._on_level_change,
-            state="disabled",
-        )
-        self._level_slider.set(9)
-        self._level_slider.grid(row=3, column=0, columnspan=2, sticky="ew",
-                                padx=12, pady=(1, 4))
-
         # 圖片解析度（僅對超過目標 DPI 的圖片降採樣，不會升採樣）
         ctk.CTkLabel(
             opt_frame, text="圖片解析度（降採樣上限）",
             font=ctk.CTkFont(family="Segoe UI", size=12),
             text_color=("gray30", "#888888"),
-        ).grid(row=4, column=0, sticky="w", padx=12, pady=(2, 0))
+        ).grid(row=2, column=0, sticky="w", padx=12, pady=(2, 0))
         self._dpi_menu = ctk.CTkOptionMenu(
             opt_frame, values=DPI_OPTIONS, width=160,
             font=ctk.CTkFont(family="Segoe UI", size=12),
@@ -429,20 +404,20 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             command=lambda _: None,
         )
         self._dpi_menu.set("150 DPI（一般文件）")
-        self._dpi_menu.grid(row=4, column=1, sticky="e", padx=12, pady=(2, 0))
+        self._dpi_menu.grid(row=2, column=1, sticky="e", padx=12, pady=(2, 0))
 
         # 圖片品質（越低壓縮率越高）
         ctk.CTkLabel(
             opt_frame, text="圖片品質（越低檔案越小）",
             font=ctk.CTkFont(family="Segoe UI", size=12),
             text_color=("gray30", "#888888"),
-        ).grid(row=5, column=0, sticky="w", padx=12, pady=(4, 0))
+        ).grid(row=3, column=0, sticky="w", padx=12, pady=(4, 0))
         self._quality_label = ctk.CTkLabel(
             opt_frame, text="75",
             font=ctk.CTkFont(family="Segoe UI", size=12),
             text_color=("gray30", "#00D1FF"),
         )
-        self._quality_label.grid(row=5, column=1, sticky="e", padx=12)
+        self._quality_label.grid(row=3, column=1, sticky="e", padx=12)
 
         self._quality_slider = ctk.CTkSlider(
             opt_frame, from_=50, to=95, number_of_steps=45,
@@ -452,7 +427,7 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
             command=self._on_quality_change,
         )
         self._quality_slider.set(75)
-        self._quality_slider.grid(row=6, column=0, columnspan=2, sticky="ew",
+        self._quality_slider.grid(row=4, column=0, columnspan=2, sticky="ew",
                                   padx=12, pady=(1, 5))
 
         # 保留原始日期
@@ -865,9 +840,6 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
         done.wait()
         return box.get("pw")
 
-    def _on_level_change(self, val):
-        self._level_label.configure(text=str(int(round(float(val)))))
-
     def _on_quality_change(self, val):
         self._quality_label.configure(text=str(int(round(float(val)))))
 
@@ -1273,7 +1245,7 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
 
         opts = CompressOptions(
             mode=self._mode_var.get(),
-            level=int(round(self._level_slider.get())),
+            level=9,  # pikepdf 9+ 自動最佳化，固定值僅為相容 CompressOptions
             dpi=_DPI_MAP.get(self._dpi_menu.get(), 150),
             quality=int(round(self._quality_slider.get())),
             output_dir=output_dir,
