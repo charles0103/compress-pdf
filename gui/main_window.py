@@ -274,7 +274,7 @@ class MainWindow(ctk.CTk, TkinterDnD.DnDWrapper):
 
         ctk.CTkLabel(
             title_frame,
-            text="v1.1",
+            text="v1.2",
             font=ctk.CTkFont(family="Segoe UI", size=13),
             text_color=("gray50", "#666666"),
         ).grid(row=0, column=1, sticky="w", padx=(8, 0))
